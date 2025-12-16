@@ -12,7 +12,10 @@
       "Bash(pnpm add:*)",
       "Bash(pnpm test:run:*)",
       "Bash(pnpm test:*)",
-      "Bash(set:*)"
+      "Bash(set:*)",
+      "Bash(pnpm test:backend:*)",
+      "Bash(pushd:*)",
+      "Bash(powershell:*)"
     ]
   }
 }

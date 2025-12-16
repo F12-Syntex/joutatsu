@@ -2,7 +2,12 @@
 
 from fastapi import APIRouter
 
+from app.api.routes import data
+
 api_router = APIRouter()
+
+# Data exploration routes (for development)
+api_router.include_router(data.router)
 
 # Route modules will be included here as they are implemented
 # from app.api.routes import tokenize, dictionary, audio, content, progress, anki, settings

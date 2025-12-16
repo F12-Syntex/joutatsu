@@ -71,3 +71,6 @@ yarn.lock
 
 # Vercel
 .vercel
+
+#broken files
+nul
