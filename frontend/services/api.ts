@@ -151,3 +151,89 @@ export async function analyzeText(
   if (!res.ok) throw new Error("Failed to analyze");
   return res.json();
 }
+
+// New API endpoints for main tokenize and dictionary services
+
+export interface TokenizeToken {
+  surface: string;
+  dictionary_form: string;
+  reading: string;
+  pos: string[];
+  pos_short: string;
+  start: number;
+  end: number;
+  is_known: boolean;
+}
+
+export interface TokenizeResponse {
+  text: string;
+  mode: string;
+  token_count: number;
+  tokens: TokenizeToken[];
+}
+
+export interface PitchPattern {
+  kanji: string;
+  pattern: string;
+}
+
+export interface Sense {
+  glosses: string[];
+  pos: string[];
+  misc: string[];
+}
+
+export interface DictEntry {
+  id: number;
+  kanji: string[];
+  readings: string[];
+  senses: Sense[];
+  pitch_accent: PitchPattern[];
+}
+
+export interface DictLookupResponse {
+  query: string;
+  count: number;
+  entries: DictEntry[];
+}
+
+export interface PitchLookupResponse {
+  reading: string;
+  count: number;
+  patterns: PitchPattern[];
+}
+
+/** Tokenize text using the main tokenize API. */
+export async function tokenize(
+  text: string,
+  mode: "A" | "B" | "C" = "C"
+): Promise<TokenizeResponse> {
+  const res = await fetch(`${API_BASE}/api/tokenize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, mode }),
+  });
+  if (!res.ok) throw new Error("Failed to tokenize");
+  return res.json();
+}
+
+/** Look up a word in the dictionary. */
+export async function dictionaryLookup(
+  query: string,
+  limit = 10
+): Promise<DictLookupResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/dictionary/lookup?query=${encodeURIComponent(query)}&limit=${limit}`
+  );
+  if (!res.ok) throw new Error("Failed to lookup dictionary");
+  return res.json();
+}
+
+/** Look up pitch accent for a reading. */
+export async function pitchLookup(reading: string): Promise<PitchLookupResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/dictionary/pitch/${encodeURIComponent(reading)}`
+  );
+  if (!res.ok) throw new Error("Failed to lookup pitch");
+  return res.json();
+}

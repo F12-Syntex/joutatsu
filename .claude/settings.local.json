@@ -15,7 +15,8 @@
       "Bash(set:*)",
       "Bash(pnpm test:backend:*)",
       "Bash(pushd:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(uv run pytest:*)"
     ]
   }
 }

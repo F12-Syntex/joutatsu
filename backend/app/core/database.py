@@ -34,3 +34,9 @@ async def init_db() -> None:
 async def close_db() -> None:
     """Close database connection."""
     await engine.dispose()
+
+
+async def get_session() -> AsyncSession:
+    """Dependency to get database session."""
+    async with async_session_maker() as session:
+        yield session
