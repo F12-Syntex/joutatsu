@@ -1,0 +1,1 @@
+"""Joutatsu backend application."""
