@@ -11,7 +11,8 @@
       "Bash(curl:*)",
       "Bash(pnpm add:*)",
       "Bash(pnpm test:run:*)",
-      "Bash(pnpm test:*)"
+      "Bash(pnpm test:*)",
+      "Bash(set:*)"
     ]
   }
 }
