@@ -101,7 +101,17 @@ joutatsu/
 
 ## Current Implementation Status
 
-The project is in **early development** (Phase 0: Foundation). Current state is frontend scaffold only. See IMPLEMENTATION_PLAN.md for the 62-task breakdown across 8 weeks.
+**Phase 1: Core Reading Canvas & Tooltips** - Complete (13 tasks)
+- TokenizerService with SudachiPy and conjugation merging
+- DictionaryService with JMdict + Kanjium pitch accent
+- API routes: `/api/tokenize`, `/api/dictionary/lookup`, `/api/dictionary/pitch`
+- Frontend: ReadingCanvas, TokenDisplay, WordTooltip, PitchDisplay
+- Zustand store for canvas state, React hooks for API calls
+- Integration at `/read` page
+
+**Next**: Phase 2 - Data Layer (content management, import, Library UI)
+
+See IMPLEMENTATION_PLAN.md for the full 62-task breakdown.
 
 ## shadcn/ui Configuration
 
@@ -120,6 +130,83 @@ npx shadcn@latest add <component-name>
 - **Dependency Injection**: Services receive dependencies for testability
 - **Offline-First**: Core features work without internet (except TTS)
 - **Data Locality**: All user data in local SQLite
+- **Graceful Degradation**: Handle missing tables/data with try/except, return partial results
+
+## Backend Patterns
+
+**FastAPI Dependency Injection**:
+```python
+from fastapi import Depends
+from app.core.database import get_session
+
+@router.post("/endpoint")
+async def handler(session: AsyncSession = Depends(get_session)):
+    service = MyService(session)
+    return await service.do_work()
+```
+
+**Service Layer**: Services take optional `AsyncSession` for database access. Always handle missing tables gracefully:
+```python
+try:
+    result = await self._session.exec(statement)
+except Exception:
+    pass  # Table may not exist yet
+```
+
+**SudachiPy Tokenizer Modes**:
+- `Mode.A`: Short units (morphemes) - "国際連合" → "国際", "連合"
+- `Mode.B`: Medium units
+- `Mode.C`: Long units (default) - "国際連合" → "国際連合"
+
+**Conjugation Merging**: TokenizerService merges verb stems with auxiliaries (ます, た, ない) for learner-friendly output.
+
+**Pitch Accent Data** (Kanjium format):
+- TSV file at `data/kanjium_pitch/accents.txt`
+- Format: `reading\tkanji\tpitch_pattern` (e.g., `タベル\t食べる\t2`)
+- Pattern number = mora where pitch drops (0 = heiban/flat)
+
+## Frontend Patterns
+
+**Zustand Store Pattern**:
+```typescript
+interface MyStore {
+  data: Data[]
+  setData: (data: Data[]) => void
+}
+export const useMyStore = create<MyStore>((set) => ({
+  data: [],
+  setData: (data) => set({ data }),
+}))
+```
+
+**API Hooks**: Use React hooks in `hooks/` that call services in `services/`. Hooks manage loading/error state.
+
+**Portal Pattern**: Use `createPortal` for tooltips to avoid z-index and overflow issues:
+```typescript
+{mounted && createPortal(<Tooltip />, document.body)}
+```
+
+## Testing Patterns
+
+**Backend Tests** (`backend/tests/`):
+- Unit tests: `tests/unit/services/test_*.py` - test services in isolation
+- Integration tests: `tests/integration/test_*_api.py` - test full API routes
+- Use `@pytest.fixture` for service instances and test clients
+
+**Test Naming**: `test_<method>_<scenario>` e.g., `test_tokenize_empty_string`
+
+**Run specific tests**:
+```bash
+uv run pytest tests/unit/services/test_tokenizer_service.py -v
+uv run pytest -k "test_merge" -v  # Run tests matching pattern
+```
+
+## Common Issues
+
+- **Hydration mismatch**: Browser extensions (Dark Reader) can cause React hydration errors. Use `suppressHydrationWarning` on `<html>` element.
+- **CORS**: Backend must allow frontend origin. Check `app/core/config.py` CORS settings.
+- **Missing data files**: JMdict and Kanjium data require `pnpm setup` to download.
+- **Database tables**: New tables require migration. Services should handle missing tables gracefully.
 
 ## Reference Documents
 

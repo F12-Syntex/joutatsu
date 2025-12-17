@@ -6,12 +6,17 @@ from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.database import get_session
 from app.dependencies import get_db
 from app.main import app
+
+# Import all models so SQLModel.metadata.create_all() creates their tables
+from app.models.content import Content, ContentChunk  # noqa: F401
 
 
 # Test database URL (in-memory SQLite)
@@ -38,7 +43,7 @@ async def test_engine() -> AsyncGenerator[Any, None]:
 
 @pytest.fixture
 async def test_session(test_engine: Any) -> AsyncGenerator[AsyncSession, None]:
-    """Create test database session."""
+    """Create test database session using SQLModel's AsyncSession."""
     async_session_maker = sessionmaker(
         test_engine, class_=AsyncSession, expire_on_commit=False
     )
@@ -55,6 +60,7 @@ async def client(test_session: AsyncSession) -> AsyncGenerator[AsyncClient, None
         yield test_session
 
     app.dependency_overrides[get_db] = override_get_session
+    app.dependency_overrides[get_session] = override_get_session
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

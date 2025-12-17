@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -9,10 +11,17 @@ import { ReadingCanvas } from '@/components/canvas/reading-canvas'
 import { WordTooltip } from '@/components/tooltip/word-tooltip'
 import { useTokenize } from '@/hooks/use-tokenize'
 import { useDictionaryLookup } from '@/hooks/use-dictionary-lookup'
+import { getContent } from '@/services/content'
 import type { Token } from '@/types/token'
 
-export default function ReadPage() {
+function ReadPageContent() {
+  const searchParams = useSearchParams()
+  const contentId = searchParams.get('content')
+
   const [inputText, setInputText] = useState('')
+  const [contentTitle, setContentTitle] = useState<string | null>(null)
+  const [isLoadingContent, setIsLoadingContent] = useState(false)
+  const [contentError, setContentError] = useState<string | null>(null)
   const [hoveredToken, setHoveredToken] = useState<Token | null>(null)
   const targetRef = useRef<HTMLElement | null>(null)
 
@@ -59,12 +68,66 @@ export default function ReadPage() {
     targetRef.current = null
   }, [])
 
+  // Load content by ID if provided in URL
+  useEffect(() => {
+    if (!contentId) return
+
+    const loadContent = async () => {
+      setIsLoadingContent(true)
+      setContentError(null)
+      try {
+        const data = await getContent(parseInt(contentId, 10))
+        setContentTitle(data.content.title)
+
+        // Combine all chunks' raw text
+        const fullText = data.chunks
+          .sort((a, b) => a.chunk_index - b.chunk_index)
+          .map((c) => c.raw_text)
+          .join('\n\n')
+
+        setInputText(fullText)
+
+        // Auto-tokenize if we have text
+        if (fullText.trim()) {
+          await tokenize(fullText)
+        }
+      } catch (err) {
+        setContentError(err instanceof Error ? err.message : 'Failed to load content')
+      } finally {
+        setIsLoadingContent(false)
+      }
+    }
+
+    loadContent()
+  }, [contentId, tokenize])
+
+  if (isLoadingContent) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (contentError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive mb-4">{contentError}</p>
+          <Button variant="outline" onClick={() => window.history.back()}>
+            Go Back
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-8 px-4 max-w-4xl">
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Japanese Reading Practice</CardTitle>
+            <CardTitle>{contentTitle || 'Japanese Reading Practice'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Textarea
@@ -101,5 +164,19 @@ export default function ReadPage() {
         />
       </div>
     </div>
+  )
+}
+
+export default function ReadPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <ReadPageContent />
+    </Suspense>
   )
 }
