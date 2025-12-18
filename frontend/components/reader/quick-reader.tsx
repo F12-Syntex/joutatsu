@@ -91,10 +91,10 @@ export function QuickReader() {
   }, [])
 
   return (
-    <Card>
+    <Card className="hover:border-primary/30 transition-colors">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Quick Practice</CardTitle>
+          <CardTitle className="text-lg font-semibold">Quick Practice</CardTitle>
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
