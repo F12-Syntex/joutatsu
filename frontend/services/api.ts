@@ -239,3 +239,116 @@ export async function pitchLookup(reading: string): Promise<PitchLookupResponse>
   if (!res.ok) throw new Error("Failed to lookup pitch");
   return res.json();
 }
+
+// Content API types and functions
+
+export interface ContentChunk {
+  chunk_index: number;
+  text: string;
+  page_number?: number;
+  token_count?: number;
+}
+
+export interface ContentResponse {
+  id: number;
+  title: string;
+  source_type: "text" | "pdf" | "epub" | "url";
+  difficulty?: number;
+  chunk_count: number;
+  total_tokens?: number;
+  unique_vocab?: number;
+  created_at: string;
+  chunks?: ContentChunk[];
+}
+
+export interface ContentListResponse {
+  contents: ContentResponse[];
+  total: number;
+}
+
+/** Import a PDF file and extract text. */
+export async function importPDF(
+  file: File,
+  title?: string,
+  preTokenize = false
+): Promise<ContentResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (title) {
+    formData.append("title", title);
+  }
+  formData.append("pre_tokenize", String(preTokenize));
+
+  const res = await fetch(`${API_BASE}/api/content/import/pdf`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: "Failed to import PDF" }));
+    throw new Error(error.detail || "Failed to import PDF");
+  }
+
+  return res.json();
+}
+
+/** Import text content. */
+export async function importText(
+  text: string,
+  title: string,
+  preTokenize = false
+): Promise<ContentResponse> {
+  const res = await fetch(`${API_BASE}/api/content/import/text`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, title, pre_tokenize: preTokenize }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: "Failed to import text" }));
+    throw new Error(error.detail || "Failed to import text");
+  }
+
+  return res.json();
+}
+
+/** Get content by ID with chunks. */
+export async function getContent(id: number): Promise<ContentResponse> {
+  const res = await fetch(`${API_BASE}/api/content/${id}`);
+  if (!res.ok) throw new Error("Failed to get content");
+  return res.json();
+}
+
+/** Get a specific chunk of content. */
+export async function getContentChunk(
+  contentId: number,
+  chunkIndex: number
+): Promise<ContentChunk> {
+  const res = await fetch(`${API_BASE}/api/content/${contentId}/chunk/${chunkIndex}`);
+  if (!res.ok) throw new Error("Failed to get chunk");
+  return res.json();
+}
+
+/** List all content. */
+export async function listContent(
+  sourceType?: string,
+  limit = 50,
+  offset = 0
+): Promise<ContentListResponse> {
+  const params = new URLSearchParams();
+  if (sourceType) params.append("source_type", sourceType);
+  params.append("limit", String(limit));
+  params.append("offset", String(offset));
+
+  const res = await fetch(`${API_BASE}/api/content?${params}`);
+  if (!res.ok) throw new Error("Failed to list content");
+  return res.json();
+}
+
+/** Delete content by ID. */
+export async function deleteContent(id: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/content/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete content");
+}
