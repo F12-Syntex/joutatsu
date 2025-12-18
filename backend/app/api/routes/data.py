@@ -45,7 +45,11 @@ def get_tokenizer():
 
 
 def get_pitch_data() -> dict[str, list[dict]]:
-    """Load and cache pitch accent data (thread-safe, immutable after load)."""
+    """Load and cache pitch accent data (thread-safe, immutable after load).
+
+    Kanjium format: kanji[TAB]reading[TAB]pattern
+    We key by hiragana reading for lookup.
+    """
     global _pitch_data, _pitch_loaded
     if not _pitch_loaded:
         _pitch_data = {}
@@ -54,10 +58,10 @@ def get_pitch_data() -> dict[str, list[dict]]:
             with open(pitch_file, encoding="utf-8") as f:
                 for line in f:
                     parts = line.strip().split("\t")
-                    if len(parts) >= 2:
-                        reading = parts[0]
-                        kanji = parts[1] if len(parts) > 1 else ""
-                        pattern = parts[2] if len(parts) > 2 else ""
+                    if len(parts) >= 3:
+                        kanji = parts[0]
+                        reading = parts[1]  # hiragana reading
+                        pattern = parts[2]
                         if reading not in _pitch_data:
                             _pitch_data[reading] = []
                         _pitch_data[reading].append({"kanji": kanji, "pattern": pattern})

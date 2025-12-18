@@ -18,7 +18,8 @@
       "Bash(powershell:*)",
       "Bash(uv run pytest:*)",
       "Bash(pnpm build:*)",
-      "Bash(pnpm lint:frontend:*)"
+      "Bash(pnpm lint:frontend:*)",
+      "Bash(npx shadcn@latest add:*)"
     ]
   }
 }

@@ -76,7 +76,7 @@ export default function LibraryPage() {
 
   const handleSelect = useCallback((content: Content) => {
     // Navigate to the reading page with this content
-    router.push(`/read?content=${content.id}`)
+    router.push(`/dev/read?content=${content.id}`)
   }, [router])
 
   const handleDeleteClick = useCallback((content: Content) => {

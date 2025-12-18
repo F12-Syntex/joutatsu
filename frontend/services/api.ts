@@ -46,6 +46,8 @@ export interface Token {
   reading: string;
   pos: string[];
   pos_short: string;
+  start: number;
+  end: number;
   pitch: { kanji: string; pattern: string }[];
 }
 

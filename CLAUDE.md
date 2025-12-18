@@ -44,21 +44,26 @@ pnpm setup           # Install deps + reference data (JMdict, Kanjium, SudachiPy
 joutatsu/
 ├── backend/           # FastAPI + SQLModel + SudachiPy
 │   ├── app/
-│   │   ├── api/routes/     # API endpoints
-│   │   ├── services/       # Business logic (tokenizer, dictionary, scoring, etc.)
-│   │   ├── repositories/   # Data access layer
-│   │   ├── models/         # SQLModel database models
+│   │   ├── api/routes/     # API endpoints (tokenize, dictionary, content, data)
+│   │   ├── services/       # Business logic (tokenizer, dictionary, content, pdf)
+│   │   ├── repositories/   # Data access layer (vocabulary, content)
+│   │   ├── models/         # SQLModel database models (Content, ContentChunk, Vocabulary)
 │   │   └── schemas/        # Pydantic request/response schemas
+│   ├── data/               # Reference data (pitch/kanjium.tsv)
 │   └── tests/
+│       ├── unit/           # Unit tests (services/, repositories/)
+│       └── integration/    # API integration tests
 ├── frontend/          # Next.js 14 + Tailwind + shadcn/ui
-│   ├── app/                # App Router pages
+│   ├── app/                # App Router pages (/read, /explore, /library)
 │   ├── components/
 │   │   ├── ui/             # shadcn/ui primitives
 │   │   ├── canvas/         # Reading canvas components
-│   │   └── tooltip/        # Tooltip system
+│   │   ├── tooltip/        # Tooltip system
+│   │   └── explore/        # Data explorer components
 │   ├── hooks/              # Custom React hooks
 │   ├── stores/             # Zustand stores
-│   └── services/           # API client functions
+│   ├── services/           # API client functions (api.ts, content.ts)
+│   └── types/              # TypeScript type definitions
 └── data/              # User data (gitignored) - SQLite DB, audio cache, content
 ```
 
@@ -101,6 +106,11 @@ joutatsu/
 
 ## Current Implementation Status
 
+**Phase 0: Project Setup** - Complete (6 tasks)
+- Monorepo structure, FastAPI + Next.js integration
+- SQLite database with SQLModel
+- Reference data setup (JMdict, Kanjium pitch, SudachiPy)
+
 **Phase 1: Core Reading Canvas & Tooltips** - Complete (13 tasks)
 - TokenizerService with SudachiPy and conjugation merging
 - DictionaryService with JMdict + Kanjium pitch accent
@@ -109,7 +119,15 @@ joutatsu/
 - Zustand store for canvas state, React hooks for API calls
 - Integration at `/read` page
 
-**Next**: Phase 2 - Data Layer (content management, import, Library UI)
+**Phase 2: Data Layer & Content Management** - Complete (13 tasks)
+- SQLModel models: Content, ContentChunk, Vocabulary
+- Repositories: VocabularyRepository, ContentRepository
+- ContentService with text/PDF import and tokenization
+- API routes: `/api/content/*` (CRUD, import, chunks)
+- Data Explorer at `/explore` page (status, content, dictionary, tokenization, pitch)
+- Frontend types and services for content management
+
+**Next**: Phase 3 - Vocabulary Tracking (SRS, known words, progress)
 
 See IMPLEMENTATION_PLAN.md for the full 62-task breakdown.
 
@@ -161,9 +179,19 @@ except Exception:
 **Conjugation Merging**: TokenizerService merges verb stems with auxiliaries (ます, た, ない) for learner-friendly output.
 
 **Pitch Accent Data** (Kanjium format):
-- TSV file at `data/kanjium_pitch/accents.txt`
-- Format: `reading\tkanji\tpitch_pattern` (e.g., `タベル\t食べる\t2`)
-- Pattern number = mora where pitch drops (0 = heiban/flat)
+- TSV file at `backend/data/pitch/kanjium.tsv`
+- Format: `kanji\treading\tpitch_pattern` (e.g., `食べる\tたべる\t2`)
+- Reading is in **hiragana** (not katakana) - lookups must use hiragana
+- Pattern number = mora where pitch drops (0 = heiban/flat, 1 = atamadaka, 2+ = nakadaka/odaka)
+
+**Data API Routes** (`/api/data/*`):
+- `/data/status` - Check availability of JMdict, SudachiPy, pitch data
+- `/data/dictionary/lookup?q=` - JMdict word lookup with pitch
+- `/data/dictionary/kanji?q=` - KanjiDic2 kanji lookup
+- `/data/pitch?q=` - Exact pitch pattern lookup (hiragana only)
+- `/data/pitch/search?q=` - Partial match pitch search
+- `/data/tokenize?text=&mode=` - Tokenize text (modes: A/B/C)
+- `/data/tokenize/analyze?text=` - Full analysis with dictionary + pitch
 
 ## Frontend Patterns
 
@@ -190,14 +218,22 @@ export const useMyStore = create<MyStore>((set) => ({
 
 **Backend Tests** (`backend/tests/`):
 - Unit tests: `tests/unit/services/test_*.py` - test services in isolation
+- Repository tests: `tests/unit/repositories/test_*.py` - test data access layer
 - Integration tests: `tests/integration/test_*_api.py` - test full API routes
-- Use `@pytest.fixture` for service instances and test clients
+- Use `@pytest.fixture` for service instances, sessions, and test clients
+
+**Test Database Setup**: Tests use in-memory SQLite. Import all models in `conftest.py` before `create_all()` to ensure tables exist:
+```python
+# Import models so SQLModel.metadata knows about them
+from app.models.content import Content, ContentChunk  # noqa: F401
+```
 
 **Test Naming**: `test_<method>_<scenario>` e.g., `test_tokenize_empty_string`
 
 **Run specific tests**:
 ```bash
 uv run pytest tests/unit/services/test_tokenizer_service.py -v
+uv run pytest tests/unit/repositories/ -v  # All repository tests
 uv run pytest -k "test_merge" -v  # Run tests matching pattern
 ```
 
