@@ -7,6 +7,8 @@ import {
   Minus,
   Plus,
   Search,
+  AlignLeft,
+  AlignVerticalJustifyStart,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -176,6 +178,41 @@ export function ReaderSettings() {
             </div>
           </div>
 
+          {/* Writing Mode */}
+          <div className="px-4 py-3 border-b border-border/20">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Reading Mode</span>
+              <div className="flex rounded-lg bg-secondary/40 p-0.5">
+                <button
+                  onClick={() => updateSettings({ writingMode: 'horizontal-tb' })}
+                  className={cn(
+                    'px-2 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
+                    settings.writingMode === 'horizontal-tb'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  title="Horizontal (left to right)"
+                >
+                  <AlignLeft className="h-3 w-3" />
+                  横書き
+                </button>
+                <button
+                  onClick={() => updateSettings({ writingMode: 'vertical-rl' })}
+                  className={cn(
+                    'px-2 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1.5',
+                    settings.writingMode === 'vertical-rl'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  title="Vertical (top to bottom, right to left)"
+                >
+                  <AlignVerticalJustifyStart className="h-3 w-3" />
+                  縦書き
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Font Family */}
           <div className="px-4 py-3 border-b border-border/20">
             <span className="text-sm text-muted-foreground block mb-2">Font</span>
@@ -316,11 +353,15 @@ export function ReaderSettings() {
           {/* Preview */}
           <div className="px-4 py-3">
             <div
-              className="p-3 rounded-lg bg-card/80 border border-border/30"
+              className={cn(
+                'p-3 rounded-lg bg-card/80 border border-border/30',
+                settings.writingMode === 'vertical-rl' && 'h-24'
+              )}
               style={{
                 fontSize: Math.min(settings.fontSize, 18),
                 lineHeight: settings.lineHeight,
                 fontFamily: settings.fontFamily,
+                writingMode: settings.writingMode,
               }}
             >
               {settings.colorByPos ? (

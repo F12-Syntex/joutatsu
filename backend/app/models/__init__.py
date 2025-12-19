@@ -1,7 +1,7 @@
 """SQLModel database models."""
 
 from app.models.base import BaseModel
-from app.models.content import Content, ContentChunk, ContentType
+from app.models.content import Content, ContentChunk, ContentImage, ContentType
 from app.models.progress import SessionLookup, VocabularyScore
 from app.models.session import ReadingSession
 from app.models.user_settings import FuriganaMode, UserSettings
@@ -11,6 +11,7 @@ __all__ = [
     "BaseModel",
     "Content",
     "ContentChunk",
+    "ContentImage",
     "ContentType",
     "FuriganaMode",
     "ReadingSession",

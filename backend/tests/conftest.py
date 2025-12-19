@@ -16,7 +16,7 @@ from app.dependencies import get_db
 from app.main import app
 
 # Import all models so SQLModel.metadata.create_all() creates their tables
-from app.models.content import Content, ContentChunk  # noqa: F401
+from app.models.content import Content, ContentChunk, ContentImage  # noqa: F401
 
 
 # Test database URL (in-memory SQLite)

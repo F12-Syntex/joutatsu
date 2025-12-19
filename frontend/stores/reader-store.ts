@@ -10,6 +10,8 @@ export interface PosColors {
   default: string
 }
 
+export type WritingMode = 'horizontal-tb' | 'vertical-rl'
+
 export interface ReaderSettings {
   fontSize: number
   lineHeight: number
@@ -17,6 +19,7 @@ export interface ReaderSettings {
   showFurigana: boolean
   colorByPos: boolean
   posColors: PosColors
+  writingMode: WritingMode
 }
 
 interface ReaderStore {
@@ -44,6 +47,7 @@ const defaultSettings: ReaderSettings = {
   showFurigana: true,
   colorByPos: false,
   posColors: defaultPosColors,
+  writingMode: 'horizontal-tb',
 }
 
 const defaultFonts = [

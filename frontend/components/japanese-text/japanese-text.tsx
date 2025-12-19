@@ -9,7 +9,7 @@ import { dictionaryLookup as lookupApi } from '@/services/api'
 import type { Token } from '@/types/token'
 import type { DictionaryEntry } from '@/types/dictionary'
 import { TooltipContent } from '@/components/tooltip/tooltip-content'
-import { type PosColors, getPosColorKey } from '@/stores/reader-store'
+import { type PosColors, type WritingMode, getPosColorKey } from '@/stores/reader-store'
 
 export interface JapaneseTextProps {
   /** The Japanese text to display */
@@ -26,6 +26,8 @@ export interface JapaneseTextProps {
   colorByPos?: boolean
   /** Colors for each part of speech */
   posColors?: PosColors
+  /** Writing mode (horizontal or vertical) */
+  writingMode?: WritingMode
   /** Custom class name */
   className?: string
   /** Called when tokenization completes */
@@ -50,9 +52,11 @@ export function JapaneseText({
   showFurigana = true,
   colorByPos = false,
   posColors = defaultPosColors,
+  writingMode = 'horizontal-tb',
   className,
   onTokenize,
 }: JapaneseTextProps) {
+  const isVertical = writingMode === 'vertical-rl'
   const [tokens, setTokens] = useState<Token[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [hoveredToken, setHoveredToken] = useState<Token | null>(null)
@@ -137,13 +141,30 @@ export function JapaneseText({
         const tooltipWidth = 320
         const tooltipHeight = 200
 
-        let x = rect.left + rect.width / 2 - tooltipWidth / 2
-        let y = rect.bottom + 8
+        let x: number
+        let y: number
 
-        // Keep within viewport
-        x = Math.max(8, Math.min(x, window.innerWidth - tooltipWidth - 8))
-        if (y + tooltipHeight > window.innerHeight - 8) {
-          y = rect.top - tooltipHeight - 8
+        if (isVertical) {
+          // For vertical text, position tooltip to the left of the text
+          x = rect.left - tooltipWidth - 8
+          y = rect.top + rect.height / 2 - tooltipHeight / 2
+
+          // If no room on left, try right
+          if (x < 8) {
+            x = rect.right + 8
+          }
+          // Keep within viewport vertically
+          y = Math.max(8, Math.min(y, window.innerHeight - tooltipHeight - 8))
+        } else {
+          // For horizontal text, position tooltip below
+          x = rect.left + rect.width / 2 - tooltipWidth / 2
+          y = rect.bottom + 8
+
+          // Keep within viewport
+          x = Math.max(8, Math.min(x, window.innerWidth - tooltipWidth - 8))
+          if (y + tooltipHeight > window.innerHeight - 8) {
+            y = rect.top - tooltipHeight - 8
+          }
         }
 
         setTooltipPosition({ x, y })
@@ -176,8 +197,16 @@ export function JapaneseText({
   return (
     <>
       <div
-        className={cn('flex flex-wrap', className)}
-        style={{ fontSize, lineHeight, fontFamily }}
+        className={cn(
+          isVertical ? 'flex flex-col flex-wrap-reverse' : 'flex flex-wrap',
+          className
+        )}
+        style={{
+          fontSize,
+          lineHeight,
+          fontFamily,
+          writingMode,
+        }}
       >
         {tokens.map((token, index) => (
           <TokenSpan

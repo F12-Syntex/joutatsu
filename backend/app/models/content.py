@@ -26,6 +26,7 @@ class Content(SQLModel, table=True):
     source_type: ContentType
     file_path: Optional[str] = Field(default=None)
     original_url: Optional[str] = Field(default=None)
+    cover_image_id: Optional[int] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     difficulty_estimate: Optional[float] = Field(default=None)
     total_tokens: int = Field(default=0)
@@ -43,3 +44,19 @@ class ContentChunk(SQLModel, table=True):
     raw_text: str
     tokenized_json: Optional[str] = Field(default=None)
     page_number: Optional[int] = Field(default=None)
+
+
+class ContentImage(SQLModel, table=True):
+    """Image extracted from content (PDF, EPUB, etc.)."""
+
+    __tablename__ = "content_images"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    content_id: int = Field(foreign_key="content.id", index=True)
+    chunk_index: Optional[int] = Field(default=None, index=True)
+    image_index: int = Field(default=0)
+    page_number: Optional[int] = Field(default=None)
+    extension: str = Field(default="jpg")
+    width: int = Field(default=0)
+    height: int = Field(default=0)
+    data: bytes = Field(default=b"")

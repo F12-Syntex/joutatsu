@@ -20,7 +20,8 @@
       "Bash(pnpm build:*)",
       "Bash(pnpm lint:frontend:*)",
       "Bash(npx shadcn@latest add:*)",
-      "Bash(yes:*)"
+      "Bash(yes:*)",
+      "Bash(uv run python:*)"
     ]
   }
 }

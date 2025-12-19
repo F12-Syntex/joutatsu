@@ -26,11 +26,13 @@ class ContentResponse(BaseModel):
     source_type: ContentType
     file_path: Optional[str]
     original_url: Optional[str]
+    cover_image_id: Optional[int]
     created_at: datetime
     difficulty_estimate: Optional[float]
     total_tokens: int
     unique_vocabulary: int
     chunk_count: int = 0
+    image_count: int = 0
 
 
 class ContentListResponse(BaseModel):
@@ -42,6 +44,19 @@ class ContentListResponse(BaseModel):
     offset: int
 
 
+class ContentImageResponse(BaseModel):
+    """Response schema for a content image."""
+
+    id: int
+    content_id: int
+    chunk_index: Optional[int]
+    image_index: int
+    page_number: Optional[int]
+    extension: str
+    width: int
+    height: int
+
+
 class ContentChunkResponse(BaseModel):
     """Response schema for a content chunk."""
 
@@ -51,6 +66,7 @@ class ContentChunkResponse(BaseModel):
     raw_text: str
     tokenized_json: Optional[str]
     page_number: Optional[int]
+    images: list[ContentImageResponse] = []
 
 
 class ContentDetailResponse(BaseModel):

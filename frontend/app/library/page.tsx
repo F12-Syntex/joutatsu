@@ -8,6 +8,8 @@ import {
   MoreHorizontal,
   Trash2,
   Clock,
+  FileText,
+  FileType,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -95,17 +97,30 @@ function EmptyState({ onImport }: { onImport: () => void }) {
   )
 }
 
+// Generate a consistent gradient based on title
+function getTitleGradient(title: string): string {
+  let hash = 0
+  for (let i = 0; i < title.length; i++) {
+    hash = title.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const hue1 = Math.abs(hash % 360)
+  const hue2 = (hue1 + 40) % 360
+  return `linear-gradient(135deg, hsl(${hue1}, 60%, 25%) 0%, hsl(${hue2}, 50%, 15%) 100%)`
+}
+
 function BookCard({ book, onDelete }: { book: Book; onDelete: () => void }) {
   const progress = Math.round((book.currentPage / book.totalPages) * 100)
   const lastRead = book.lastReadAt
     ? formatRelativeTime(book.lastReadAt)
     : null
 
+  const SourceIcon = book.sourceType === 'pdf' ? FileType : FileText
+
   return (
     <div className="group relative">
       <Link href={`/library/${book.id}`}>
-        <div className="relative aspect-[3/4] rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-border/50 overflow-hidden transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
-          {/* Cover or placeholder */}
+        <div className="relative aspect-[3/4] rounded-xl border border-border/50 overflow-hidden transition-all hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+          {/* Cover or generated placeholder */}
           {book.coverUrl ? (
             <img
               src={book.coverUrl}
@@ -113,18 +128,24 @@ function BookCard({ book, onDelete }: { book: Book; onDelete: () => void }) {
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center p-4"
+              style={{ background: getTitleGradient(book.title) }}
+            >
+              {/* Source type icon */}
+              <SourceIcon className="h-8 w-8 text-white/20 mb-3" />
+              {/* Title preview */}
               <span
-                className="text-4xl font-bold text-primary/30 text-center leading-tight"
+                className="text-2xl font-bold text-white/80 text-center leading-tight line-clamp-3"
                 style={{ fontFamily: 'serif' }}
               >
-                {book.title.slice(0, 2)}
+                {book.title}
               </span>
             </div>
           )}
 
           {/* Progress bar */}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-background/50">
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/30">
             <div
               className="h-full bg-primary transition-all"
               style={{ width: `${progress}%` }}

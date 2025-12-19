@@ -242,19 +242,35 @@ export async function pitchLookup(reading: string): Promise<PitchLookupResponse>
 
 // Content API types and functions
 
-export interface ContentChunk {
-  chunk_index: number;
-  text: string;
+export interface ContentImage {
+  id: number;
+  content_id: number;
+  chunk_index?: number;
+  image_index: number;
   page_number?: number;
-  token_count?: number;
+  extension: string;
+  width: number;
+  height: number;
+}
+
+export interface ContentChunk {
+  id: number;
+  content_id: number;
+  chunk_index: number;
+  raw_text: string;
+  tokenized_json?: string;
+  page_number?: number;
+  images: ContentImage[];
 }
 
 export interface ContentResponse {
   id: number;
   title: string;
   source_type: "text" | "pdf" | "epub" | "url";
+  cover_image_id?: number;
   difficulty?: number;
   chunk_count: number;
+  image_count?: number;
   total_tokens?: number;
   unique_vocab?: number;
   created_at: string;
@@ -351,4 +367,16 @@ export async function deleteContent(id: number): Promise<void> {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete content");
+}
+
+/** Get the URL for a content image. */
+export function getImageUrl(imageId: number): string {
+  return `${API_BASE}/api/content/image/${imageId}`;
+}
+
+/** Get all images for a content item. */
+export async function getContentImages(contentId: number): Promise<ContentImage[]> {
+  const res = await fetch(`${API_BASE}/api/content/${contentId}/images`);
+  if (!res.ok) throw new Error("Failed to get images");
+  return res.json();
 }

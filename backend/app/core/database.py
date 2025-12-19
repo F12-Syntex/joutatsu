@@ -1,5 +1,6 @@
 """Database connection and session management."""
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -25,9 +26,54 @@ async_session_maker = sessionmaker(
 )
 
 
+async def run_migrations(conn) -> None:
+    """Run database migrations for schema updates."""
+    try:
+        # Check if content table exists and if cover_image_id column exists
+        result = await conn.execute(text("PRAGMA table_info(content)"))
+        columns = [row[1] for row in result.fetchall()]
+
+        # Only run migration if content table exists but column doesn't
+        if columns and "cover_image_id" not in columns:
+            await conn.execute(
+                text("ALTER TABLE content ADD COLUMN cover_image_id INTEGER")
+            )
+
+        # Create content_images table if it doesn't exist
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS content_images (
+                id INTEGER PRIMARY KEY,
+                content_id INTEGER NOT NULL,
+                chunk_index INTEGER,
+                image_index INTEGER DEFAULT 0,
+                page_number INTEGER,
+                extension TEXT DEFAULT 'jpg',
+                width INTEGER DEFAULT 0,
+                height INTEGER DEFAULT 0,
+                data BLOB DEFAULT '',
+                FOREIGN KEY (content_id) REFERENCES content(id)
+            )
+        """))
+
+        # Create indexes if they don't exist
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_content_images_content_id "
+            "ON content_images(content_id)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_content_images_chunk_index "
+            "ON content_images(chunk_index)"
+        ))
+    except Exception:
+        pass  # Migrations may fail on fresh DB, tables will be created by create_all
+
+
 async def init_db() -> None:
     """Initialize database and create tables."""
     async with engine.begin() as conn:
+        # Run migrations first for existing databases
+        await run_migrations(conn)
+        # Then create any new tables
         await conn.run_sync(SQLModel.metadata.create_all)
 
 

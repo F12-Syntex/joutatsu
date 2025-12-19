@@ -1,8 +1,20 @@
-"""PDF parsing service for extracting text from PDF files."""
+"""PDF parsing service for extracting text and images from PDF files."""
 
 import io
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
+
+
+@dataclass
+class PDFImage:
+    """Represents an image extracted from a PDF."""
+
+    page_number: int
+    image_index: int
+    data: bytes
+    extension: str  # e.g., "png", "jpg"
+    width: int
+    height: int
 
 
 @dataclass
@@ -11,6 +23,7 @@ class PDFPage:
 
     page_number: int
     text: str
+    images: list[PDFImage] = field(default_factory=list)
 
 
 class PDFService:
@@ -29,15 +42,18 @@ class PDFService:
                 "Run: uv pip install pypdf"
             )
 
-    def extract_text_from_bytes(self, pdf_bytes: bytes) -> list[PDFPage]:
+    def extract_text_from_bytes(
+        self, pdf_bytes: bytes, extract_images: bool = True
+    ) -> list[PDFPage]:
         """
-        Extract text from PDF bytes.
+        Extract text and images from PDF bytes.
 
         Args:
             pdf_bytes: Raw PDF file bytes
+            extract_images: Whether to extract images
 
         Returns:
-            List of PDFPage objects with text per page
+            List of PDFPage objects with text and images per page
         """
         self._ensure_pdf_library()
         from pypdf import PdfReader
@@ -47,12 +63,69 @@ class PDFService:
 
         for i, page in enumerate(reader.pages):
             text = page.extract_text() or ""
-            # Clean up text
             text = self._clean_text(text)
-            if text.strip():
-                pages.append(PDFPage(page_number=i + 1, text=text))
+
+            images = []
+            if extract_images:
+                images = self._extract_page_images(page, i + 1)
+
+            if text.strip() or images:
+                pages.append(PDFPage(
+                    page_number=i + 1,
+                    text=text,
+                    images=images,
+                ))
 
         return pages
+
+    def _extract_page_images(self, page, page_number: int) -> list[PDFImage]:
+        """Extract images from a single PDF page."""
+        images = []
+        try:
+            for idx, image in enumerate(page.images):
+                ext = self._get_image_extension(image.name)
+                if ext:
+                    images.append(PDFImage(
+                        page_number=page_number,
+                        image_index=idx,
+                        data=image.data,
+                        extension=ext,
+                        width=getattr(image, 'width', 0) or 0,
+                        height=getattr(image, 'height', 0) or 0,
+                    ))
+        except Exception:
+            pass  # Some PDFs have malformed images
+        return images
+
+    def _get_image_extension(self, name: str) -> Optional[str]:
+        """Get image extension from filename or detect from data."""
+        name_lower = name.lower()
+        if name_lower.endswith('.png'):
+            return 'png'
+        elif name_lower.endswith(('.jpg', '.jpeg')):
+            return 'jpg'
+        elif name_lower.endswith('.gif'):
+            return 'gif'
+        elif name_lower.endswith('.webp'):
+            return 'webp'
+        # Default to jpg for unknown
+        return 'jpg'
+
+    def get_first_image(self, pdf_bytes: bytes) -> Optional[PDFImage]:
+        """Get the first image from the PDF for use as cover."""
+        pages = self.extract_text_from_bytes(pdf_bytes, extract_images=True)
+        for page in pages:
+            if page.images:
+                return page.images[0]
+        return None
+
+    def get_all_images(self, pdf_bytes: bytes) -> list[PDFImage]:
+        """Get all images from the PDF."""
+        pages = self.extract_text_from_bytes(pdf_bytes, extract_images=True)
+        all_images = []
+        for page in pages:
+            all_images.extend(page.images)
+        return all_images
 
     def extract_text_from_file(self, file_path: str) -> list[PDFPage]:
         """

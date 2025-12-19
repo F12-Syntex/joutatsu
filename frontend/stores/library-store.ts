@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Book, BookPage, BookImportData } from '@/types/book'
 import type { ContentResponse } from '@/services/api'
+import { getImageUrl } from '@/services/api'
 
 interface LibraryStore {
   books: Book[]
@@ -71,6 +72,9 @@ export const useLibraryStore = create<LibraryStore>()(
           title: content.title,
           sourceType: content.source_type,
           contentId: content.id,
+          coverUrl: content.cover_image_id
+            ? getImageUrl(content.cover_image_id)
+            : undefined,
           currentPage: 1,
           totalPages: content.chunk_count,
           createdAt: Date.now(),

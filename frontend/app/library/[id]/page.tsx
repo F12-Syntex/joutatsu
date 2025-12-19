@@ -23,7 +23,8 @@ import {
 import { ReaderSettings } from '@/components/reader'
 import { useLibraryStore } from '@/stores/library-store'
 import { useReaderStore } from '@/stores/reader-store'
-import { getContentChunk } from '@/services/api'
+import { getContentChunk, getImageUrl } from '@/services/api'
+import type { ContentImage } from '@/services/api'
 import type { Book } from '@/types/book'
 
 export default function BookReaderPage() {
@@ -36,8 +37,11 @@ export default function BookReaderPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [jumpToPage, setJumpToPage] = useState('')
   const [chunkContent, setChunkContent] = useState<string | null>(null)
+  const [chunkImages, setChunkImages] = useState<ContentImage[]>([])
   const [isLoadingChunk, setIsLoadingChunk] = useState(false)
-  const chunkCache = useRef<Map<number, string>>(new Map())
+  const chunkCache = useRef<Map<number, { text: string; images: ContentImage[] }>>(
+    new Map()
+  )
 
   // Load book
   useEffect(() => {
@@ -118,19 +122,24 @@ export default function BookReaderPage() {
 
     // Check cache first
     if (chunkCache.current.has(chunkIndex)) {
-      setChunkContent(chunkCache.current.get(chunkIndex)!)
+      const cached = chunkCache.current.get(chunkIndex)!
+      setChunkContent(cached.text)
+      setChunkImages(cached.images)
       return
     }
 
     setIsLoadingChunk(true)
     getContentChunk(book.contentId, chunkIndex)
       .then((chunk) => {
-        chunkCache.current.set(chunkIndex, chunk.text)
-        setChunkContent(chunk.text)
+        const cached = { text: chunk.raw_text, images: chunk.images || [] }
+        chunkCache.current.set(chunkIndex, cached)
+        setChunkContent(cached.text)
+        setChunkImages(cached.images)
       })
       .catch((err) => {
         console.error('Failed to load chunk:', err)
         setChunkContent(null)
+        setChunkImages([])
       })
       .finally(() => {
         setIsLoadingChunk(false)
@@ -189,21 +198,53 @@ export default function BookReaderPage() {
         </header>
 
         {/* Content */}
-        <div className="flex-1 p-6 md:p-10 lg:p-14 pb-24">
+        <div
+          className={cn(
+            'flex-1 p-6 md:p-10 lg:p-14 pb-24',
+            settings.writingMode === 'vertical-rl' && 'overflow-x-auto'
+          )}
+        >
           {isLoadingChunk ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : displayContent ? (
-            <JapaneseText
-              text={displayContent}
-              fontSize={settings.fontSize}
-              lineHeight={settings.lineHeight}
-              fontFamily={settings.fontFamily}
-              showFurigana={settings.showFurigana}
-              colorByPos={settings.colorByPos}
-              posColors={settings.posColors}
-            />
+            <div
+              className={cn(
+                'space-y-6',
+                settings.writingMode === 'vertical-rl' && 'h-[calc(100vh-200px)] min-h-[400px]'
+              )}
+            >
+              {/* Text content */}
+              <JapaneseText
+                text={displayContent}
+                fontSize={settings.fontSize}
+                lineHeight={settings.lineHeight}
+                fontFamily={settings.fontFamily}
+                showFurigana={settings.showFurigana}
+                colorByPos={settings.colorByPos}
+                posColors={settings.posColors}
+                writingMode={settings.writingMode}
+              />
+
+              {/* Images */}
+              {chunkImages.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-border/50">
+                  <div className="grid gap-4">
+                    {chunkImages.map((img) => (
+                      <div key={img.id} className="rounded-lg overflow-hidden bg-muted/30">
+                        <img
+                          src={getImageUrl(img.id)}
+                          alt={`Page ${img.page_number || ''} image ${img.image_index + 1}`}
+                          className="w-full h-auto max-h-[600px] object-contain mx-auto"
+                          loading="lazy"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="text-muted-foreground">Page not found</div>
           )}

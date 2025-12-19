@@ -5,7 +5,7 @@ from typing import Optional, Sequence
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.content import Content, ContentChunk, ContentType
+from app.models.content import Content, ContentChunk, ContentImage, ContentType
 from app.repositories.base import BaseRepository
 
 
@@ -152,3 +152,89 @@ class ContentChunkRepository(BaseRepository[ContentChunk]):
             await self.session.commit()
             await self.session.refresh(chunk)
         return chunk
+
+
+class ContentImageRepository(BaseRepository[ContentImage]):
+    """Repository for content image data access."""
+
+    def __init__(self, session: AsyncSession):
+        super().__init__(ContentImage, session)
+
+    async def get_images_for_content(
+        self, content_id: int
+    ) -> Sequence[ContentImage]:
+        """Get all images for a content item."""
+        statement = (
+            select(ContentImage)
+            .where(ContentImage.content_id == content_id)
+            .order_by(ContentImage.page_number, ContentImage.image_index)
+        )
+        result = await self.session.exec(statement)
+        return result.all()
+
+    async def get_images_for_chunk(
+        self, content_id: int, chunk_index: int
+    ) -> Sequence[ContentImage]:
+        """Get images for a specific chunk."""
+        statement = (
+            select(ContentImage)
+            .where(
+                ContentImage.content_id == content_id,
+                ContentImage.chunk_index == chunk_index,
+            )
+            .order_by(ContentImage.image_index)
+        )
+        result = await self.session.exec(statement)
+        return result.all()
+
+    async def get_image(self, image_id: int) -> Optional[ContentImage]:
+        """Get a specific image by ID."""
+        return await self.get(image_id)
+
+    async def get_image_count(self, content_id: int) -> int:
+        """Get total image count for a content item."""
+        from sqlmodel import func
+
+        statement = (
+            select(func.count())
+            .select_from(ContentImage)
+            .where(ContentImage.content_id == content_id)
+        )
+        result = await self.session.exec(statement)
+        return result.one() or 0
+
+    async def create_image(
+        self,
+        content_id: int,
+        chunk_index: Optional[int],
+        image_index: int,
+        page_number: Optional[int],
+        extension: str,
+        width: int,
+        height: int,
+        data: bytes,
+    ) -> ContentImage:
+        """Create a new content image."""
+        image = ContentImage(
+            content_id=content_id,
+            chunk_index=chunk_index,
+            image_index=image_index,
+            page_number=page_number,
+            extension=extension,
+            width=width,
+            height=height,
+            data=data,
+        )
+        self.session.add(image)
+        await self.session.commit()
+        await self.session.refresh(image)
+        return image
+
+    async def delete_images_for_content(self, content_id: int) -> int:
+        """Delete all images for a content item."""
+        images = await self.get_images_for_content(content_id)
+        count = len(images)
+        for image in images:
+            await self.session.delete(image)
+        await self.session.commit()
+        return count
