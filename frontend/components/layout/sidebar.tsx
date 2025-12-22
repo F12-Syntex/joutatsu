@@ -9,6 +9,7 @@ import {
   BarChart3,
   Home,
   GraduationCap,
+  Video,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -45,6 +46,11 @@ const navItems: NavItem[] = [
     title: 'Study',
     href: '/study',
     icon: GraduationCap,
+  },
+  {
+    title: 'Watch',
+    href: '/watch',
+    icon: Video,
   },
 ]
 

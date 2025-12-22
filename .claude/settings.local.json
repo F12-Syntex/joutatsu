@@ -25,7 +25,10 @@
       "Bash(pnpm --filter backend exec python:*)",
       "Bash(pnpm lint:backend:*)",
       "Bash(pnpm exec tsc:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm eslint:*)",
+      "Bash(ls:*)"
     ]
   }
 }

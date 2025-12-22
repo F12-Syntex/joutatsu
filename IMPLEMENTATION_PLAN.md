@@ -1,8 +1,8 @@
 # Joutatsu - Implementation Plan
 
-> **Reference**: ARCHITECTURE.md v1.0.0  
-> **Total Tasks**: 62  
-> **Estimated Duration**: 8 weeks
+> **Reference**: ARCHITECTURE.md v1.0.0
+> **Total Tasks**: 82
+> **Estimated Duration**: 10 weeks
 
 ---
 
@@ -1733,6 +1733,523 @@ Additional tests across all test directories
 
 ---
 
+## Phase 7: Video Watch Mode (Week 9)
+
+### JOUT-701: Create /watch page route and layout
+
+**Context**
+- Reference: New feature
+- Depends on: JOUT-003
+- Branch: feature/watch-page
+
+**Objective**
+Create the watch page with directory picker and video list layout.
+
+**Output**
+```
+/frontend/app/watch/page.tsx
+/frontend/stores/watch-store.ts
+```
+
+**Acceptance Criteria**
+- [ ] Page renders at /watch
+- [ ] Directory picker button
+- [ ] Empty state when no directory selected
+- [ ] Basic layout structure
+
+---
+
+### JOUT-702: Implement directory picker for video folder
+
+**Context**
+- Reference: File System Access API
+- Depends on: JOUT-701
+- Branch: feature/directory-picker
+
+**Objective**
+Allow user to select a folder containing video files.
+
+**Output**
+```
+/frontend/components/watch/directory-picker.tsx
+/frontend/hooks/use-directory-picker.ts
+```
+
+**Acceptance Criteria**
+- [ ] Opens native folder picker
+- [ ] Stores selected directory handle
+- [ ] Persists selection in localStorage
+- [ ] Shows selected folder path
+
+---
+
+### JOUT-703: Build video list view
+
+**Context**
+- Reference: JOUT-702
+- Depends on: JOUT-702
+- Branch: feature/video-list
+
+**Objective**
+Display list of video files from selected directory.
+
+**Output**
+```
+/frontend/components/watch/video-list.tsx
+/frontend/components/watch/video-card.tsx
+/frontend/types/video.ts
+```
+
+**Acceptance Criteria**
+- [ ] Lists .mp4, .mkv, .webm files
+- [ ] Detects matching subtitle files (.srt, .ass, .vtt)
+- [ ] Shows video thumbnail if available
+- [ ] Indicates subtitle availability
+
+---
+
+### JOUT-704: Create video player component
+
+**Context**
+- Reference: HTML5 Video API
+- Depends on: JOUT-703
+- Branch: feature/video-player
+
+**Objective**
+Video player with standard controls.
+
+**Output**
+```
+/frontend/components/watch/video-player.tsx
+/frontend/components/watch/player-controls.tsx
+/frontend/hooks/use-video-player.ts
+```
+
+**Acceptance Criteria**
+- [ ] Play/pause functionality
+- [ ] Seek bar with progress
+- [ ] Volume control
+- [ ] Fullscreen toggle
+- [ ] Keyboard shortcuts
+
+---
+
+### JOUT-705: Add SRT subtitle parser
+
+**Context**
+- Reference: SRT format specification
+- Depends on: JOUT-704
+- Branch: feature/srt-parser
+
+**Objective**
+Parse SRT subtitle files into timed text segments.
+
+**Output**
+```
+/frontend/lib/subtitle-parser.ts
+/frontend/types/subtitle.ts
+```
+
+**Acceptance Criteria**
+- [ ] Parse .srt format
+- [ ] Handle timing codes
+- [ ] Support multi-line subtitles
+- [ ] Handle common encoding (UTF-8, Shift-JIS)
+
+---
+
+### JOUT-706: Sync subtitles with video playback
+
+**Context**
+- Reference: JOUT-705
+- Depends on: JOUT-704, JOUT-705
+- Branch: feature/subtitle-sync
+
+**Objective**
+Display current subtitle based on video timestamp.
+
+**Output**
+```
+/frontend/components/watch/subtitle-display.tsx
+/frontend/hooks/use-subtitle-sync.ts
+```
+
+**Acceptance Criteria**
+- [ ] Shows current subtitle text
+- [ ] Updates on video timeupdate
+- [ ] Smooth transitions between subtitles
+- [ ] Handles gaps in subtitles
+
+---
+
+### JOUT-707: Display subtitle with JapaneseText hover tooltips
+
+**Context**
+- Reference: Existing JapaneseText component
+- Depends on: JOUT-706, JOUT-113
+- Branch: feature/subtitle-tooltips
+
+**Objective**
+Render subtitle text using JapaneseText component with tokenization and hover lookups.
+
+**Output**
+```
+Modified: /frontend/components/watch/subtitle-display.tsx
+/frontend/hooks/use-subtitle-tokenize.ts
+```
+
+**Acceptance Criteria**
+- [ ] Subtitle text tokenized via API
+- [ ] Hover shows dictionary tooltip
+- [ ] Pitch accent displayed
+- [ ] Pre-tokenize upcoming subtitles for performance
+
+---
+
+### JOUT-708: Add Watch navigation link
+
+**Context**
+- Reference: App navigation
+- Depends on: JOUT-701
+- Branch: feature/watch-nav
+
+**Objective**
+Add Watch link to main navigation.
+
+**Output**
+```
+Modified: /frontend/components/layout/main-layout.tsx
+Modified: /frontend/components/layout/sidebar.tsx (if exists)
+```
+
+**Acceptance Criteria**
+- [ ] Watch link in navigation
+- [ ] Active state when on /watch
+- [ ] Appropriate icon
+
+---
+
+## Phase 8: Difficulty Analysis & Adaptive Content (Week 10)
+
+### JOUT-801: Implement DifficultyService with jReadability
+
+**Context**
+- Reference: jReadability library (https://github.com/joshdavham/jreadability)
+- Depends on: JOUT-101 (TokenizerService)
+- Branch: feature/difficulty-service
+
+**Objective**
+Create DifficultyService that analyzes Japanese text and returns multi-dimensional difficulty scores.
+
+**Output**
+```
+/backend/app/services/difficulty_service.py
+/backend/app/schemas/difficulty.py
+/backend/tests/unit/services/test_difficulty_service.py
+```
+
+**Key Dependencies**
+- jreadability
+- wordfreq
+
+**Acceptance Criteria**
+- [ ] Computes overall_difficulty (0.0-1.0) via jReadability
+- [ ] Computes kanji_difficulty based on grade levels
+- [ ] Computes lexical_difficulty using wordfreq
+- [ ] Computes grammar_complexity via pattern matching
+- [ ] Computes sentence_complexity from length/structure
+- [ ] Returns difficulty_level category (Beginner/Elementary/Intermediate/Advanced/Expert)
+- [ ] Tests pass
+
+---
+
+### JOUT-802: Integrate KanjiAPI for grade data
+
+**Context**
+- Reference: https://kanjiapi.dev/#!/documentation
+- Depends on: JOUT-801
+- Branch: feature/kanji-grades
+
+**Objective**
+Fetch and cache kanji grade/JLPT level data from KanjiAPI.
+
+**Output**
+```
+/backend/app/services/kanji_grade_service.py
+/backend/data/kanji/grades.json (cached data)
+/backend/tests/unit/services/test_kanji_grade_service.py
+```
+
+**Acceptance Criteria**
+- [ ] Fetches kanji data from kanjiapi.dev
+- [ ] Caches 3,000+ kanji with grades locally
+- [ ] Returns grade (1-6) and JLPT level (N5-N1) for any kanji
+- [ ] Handles unknown kanji gracefully
+- [ ] Setup script downloads/updates cache
+- [ ] Tests pass
+
+---
+
+### JOUT-803: Create difficulty analysis API routes
+
+**Context**
+- Reference: ARCHITECTURE.md Section 5.2
+- Depends on: JOUT-801, JOUT-802
+- Branch: feature/difficulty-api
+
+**Objective**
+Expose text difficulty analysis via REST API.
+
+**Output**
+```
+/backend/app/api/routes/difficulty.py
+/backend/tests/integration/test_difficulty_api.py
+```
+
+**Acceptance Criteria**
+- [ ] POST /api/difficulty/analyze accepts text, returns all metrics
+- [ ] GET /api/difficulty/kanji/{character} returns grade info
+- [ ] POST /api/difficulty/batch analyzes multiple texts
+- [ ] Response includes all 6 difficulty dimensions
+- [ ] Integration tests pass
+
+---
+
+### JOUT-804: Create UserProficiency model
+
+**Context**
+- Reference: ARCHITECTURE.md Section 4
+- Depends on: JOUT-006
+- Branch: feature/proficiency-model
+
+**Objective**
+SQLModel for tracking user proficiency across difficulty dimensions.
+
+**Output**
+```
+/backend/app/models/proficiency.py
+Modified: /backend/app/models/__init__.py
+```
+
+**Schema**
+```python
+class UserProficiency(SQLModel, table=True):
+    id: int
+    overall_level: float  # 0.0-1.0
+    kanji_level: float
+    lexical_level: float
+    grammar_level: float
+    sentence_level: float
+    difficulty_category: str  # Beginner/Elementary/etc.
+    updated_at: datetime
+```
+
+**Acceptance Criteria**
+- [ ] Model created with all proficiency dimensions
+- [ ] Table created on startup
+- [ ] Default values for new users
+- [ ] Timestamps tracked
+
+---
+
+### JOUT-805: Implement ProficiencyService
+
+**Context**
+- Reference: ARCHITECTURE.md Section 7
+- Depends on: JOUT-804, JOUT-801
+- Branch: feature/proficiency-service
+
+**Objective**
+Service for updating user proficiency based on reading performance.
+
+**Output**
+```
+/backend/app/services/proficiency_service.py
+/backend/app/repositories/proficiency_repo.py
+/backend/tests/unit/services/test_proficiency_service.py
+```
+
+**Acceptance Criteria**
+- [ ] Gets current proficiency levels
+- [ ] Updates proficiency based on reading session results
+- [ ] Tracks per-dimension progress separately
+- [ ] Calculates suggested difficulty level for content selection
+- [ ] Tests pass
+
+---
+
+### JOUT-806: Create proficiency API routes
+
+**Context**
+- Reference: ARCHITECTURE.md Section 5.2
+- Depends on: JOUT-805
+- Branch: feature/proficiency-api
+
+**Objective**
+REST API for user proficiency data.
+
+**Output**
+```
+/backend/app/api/routes/proficiency.py
+/backend/app/schemas/proficiency.py
+/backend/tests/integration/test_proficiency_api.py
+```
+
+**Acceptance Criteria**
+- [ ] GET /api/proficiency returns current levels
+- [ ] POST /api/proficiency/update updates based on session
+- [ ] GET /api/proficiency/history returns level changes over time
+- [ ] Response includes all 6 dimensions
+- [ ] Integration tests pass
+
+---
+
+### JOUT-807: Update ContentService with difficulty scoring
+
+**Context**
+- Reference: JOUT-205, JOUT-801
+- Depends on: JOUT-801, JOUT-205
+- Branch: feature/content-difficulty
+
+**Objective**
+Analyze and store difficulty scores when importing content.
+
+**Output**
+```
+Modified: /backend/app/services/content_service.py
+Modified: /backend/app/models/content.py
+```
+
+**Acceptance Criteria**
+- [ ] Content model includes difficulty fields
+- [ ] Import calculates and stores all difficulty metrics
+- [ ] Chunks inherit or calculate own difficulty
+- [ ] Existing content can be re-analyzed
+- [ ] Tests updated
+
+---
+
+### JOUT-808: Build useProficiency hook
+
+**Context**
+- Reference: ARCHITECTURE.md Section 6.3
+- Depends on: JOUT-806
+- Branch: feature/use-proficiency
+
+**Objective**
+TanStack Query hook for proficiency data.
+
+**Output**
+```
+/frontend/hooks/use-proficiency.ts
+/frontend/services/proficiency.ts
+/frontend/types/proficiency.ts
+```
+
+**Acceptance Criteria**
+- [ ] Fetches current proficiency levels
+- [ ] Caches with appropriate staleTime
+- [ ] Provides mutation for updates
+- [ ] Returns typed ProficiencyData
+
+---
+
+### JOUT-809: Build ProficiencyDisplay component
+
+**Context**
+- Reference: ARCHITECTURE.md Section 6.1
+- Depends on: JOUT-808
+- Branch: feature/proficiency-display
+
+**Objective**
+Visual display of user proficiency across dimensions.
+
+**Output**
+```
+/frontend/components/progress/proficiency-display.tsx
+/frontend/components/progress/proficiency-radar.tsx
+```
+
+**Acceptance Criteria**
+- [ ] Radar/spider chart showing all 6 dimensions
+- [ ] Color coded by level
+- [ ] Shows numeric values on hover
+- [ ] Responsive design
+
+---
+
+### JOUT-810: Integrate proficiency with Progress page
+
+**Context**
+- Reference: JOUT-308
+- Depends on: JOUT-809
+- Branch: feature/progress-proficiency
+
+**Objective**
+Add proficiency breakdown to Progress page.
+
+**Output**
+```
+Modified: /frontend/app/progress/page.tsx
+```
+
+**Acceptance Criteria**
+- [ ] Shows proficiency radar chart
+- [ ] Displays per-dimension breakdown
+- [ ] Shows historical progress
+- [ ] Links to content at appropriate level
+
+---
+
+### JOUT-811: Build content difficulty filter
+
+**Context**
+- Reference: JOUT-209
+- Depends on: JOUT-807
+- Branch: feature/difficulty-filter
+
+**Objective**
+Filter library content by difficulty level.
+
+**Output**
+```
+/frontend/components/library/difficulty-filter.tsx
+Modified: /frontend/app/library/page.tsx
+```
+
+**Acceptance Criteria**
+- [ ] Slider or dropdown for difficulty range
+- [ ] Filter by difficulty_level category
+- [ ] Filter by individual dimensions
+- [ ] "Match my level" button uses proficiency
+- [ ] Filters persist in URL params
+
+---
+
+### JOUT-812: Update scoring to track per-dimension performance
+
+**Context**
+- Reference: JOUT-302, JOUT-805
+- Depends on: JOUT-302, JOUT-805
+- Branch: feature/dimension-scoring
+
+**Objective**
+Record which dimension (kanji, vocab, grammar) caused lookups.
+
+**Output**
+```
+Modified: /backend/app/services/scoring_service.py
+Modified: /backend/app/models/session.py
+```
+
+**Acceptance Criteria**
+- [ ] Lookups categorized by difficulty dimension
+- [ ] Session stats include per-dimension breakdown
+- [ ] Proficiency updates weighted by dimension performance
+- [ ] Tests updated
+
+---
+
 ## Summary
 
 | Phase | Tasks | Focus |
@@ -1744,8 +2261,10 @@ Additional tests across all test directories
 | 4 | 6 | Anki synchronization |
 | 5 | 7 | Audio and TTS |
 | 6 | 12 | Settings, polish, optimization |
+| 7 | 8 | Video watch mode with subtitles |
+| 8 | 12 | Difficulty analysis, adaptive content, proficiency tracking |
 
-**Total: 62 tasks**
+**Total: 82 tasks**
 
 ---
 
@@ -1770,60 +2289,6 @@ Output requirements:
 - Include tests where specified
 - Do not modify files not listed in Output
 ```
-'
-import { useCanvasStore } from '@/stores/canvas-store'
-
-interface ReadingCanvasProps {
-  tokens: Token[]
-  onTokenHover: (token: Token | null, element: HTMLElement | null) => void
-  onTokenClick: (token: Token) => void
-}
-
-export function ReadingCanvas({ tokens, onTokenHover, onTokenClick }: ReadingCanvasProps) {
-  const settings = useCanvasStore((s) => s.settings)
-  
-  // Group tokens into sentences (split on 。！？)
-  const sentences = groupIntoSentences(tokens)
-  
-  return (
-    <div 
-      className="reading-canvas"
-      style={{
-        fontFamily: settings.fontFamily,
-        fontSize: `${settings.fontSize}px`,
-        lineHeight: settings.lineHeight,
-        maxWidth: `${settings.maxWidth}px`,
-      }}
-    >
-      {sentences.map((sentence, i) => (
-        <SentenceBlock
-          key={i}
-          tokens={sentence}
-          onTokenHover={onTokenHover}
-          onTokenClick={onTokenClick}
-        />
-      ))}
-    </div>
-  )
-}
-```
-
-- No hook logic inside component
-- Receives all data via props
-- Styling via inline styles from settings (dynamic)
-
-**Acceptance Criteria**
-- [ ] Renders array of tokens
-- [ ] Groups into sentences correctly
-- [ ] Applies font settings
-- [ ] Responsive to container width
-- [ ] No console errors
-
----
-
-### JOUT-106 through JOUT-612
-
-The remaining tasks follow the same detailed format. See the full task breakdown in the **Task Checklist** appendix below.
 
 ---
 
@@ -1831,52 +2296,52 @@ The remaining tasks follow the same detailed format. See the full task breakdown
 
 ```
 Phase 0: Foundation
-[ ] JOUT-001: Initialize monorepo structure
-[ ] JOUT-002: Setup backend with FastAPI + SQLModel
-[ ] JOUT-003: Setup frontend with Next.js + Tailwind + shadcn
-[ ] JOUT-004: Configure development scripts
-[ ] JOUT-005: Setup pytest + vitest
-[ ] JOUT-006: Create database models
-[ ] JOUT-007: Setup reference data download script
-[ ] JOUT-008: Configure static file serving for production
+[x] JOUT-001: Initialize monorepo structure
+[x] JOUT-002: Setup backend with FastAPI + SQLModel
+[x] JOUT-003: Setup frontend with Next.js + Tailwind + shadcn
+[x] JOUT-004: Configure development scripts
+[x] JOUT-005: Setup pytest + vitest
+[x] JOUT-006: Create database models
+[x] JOUT-007: Setup reference data download script
+[x] JOUT-008: Configure static file serving for production
 
 Phase 1: Core Reading
-[ ] JOUT-101: Implement TokenizerService
-[ ] JOUT-102: Create tokenize API routes
-[ ] JOUT-103: Implement DictionaryService
-[ ] JOUT-104: Create dictionary API routes
-[ ] JOUT-105: Build ReadingCanvas component
-[ ] JOUT-106: Build TokenDisplay component
-[ ] JOUT-107: Build WordTooltip component
-[ ] JOUT-108: Implement tooltip positioning logic
-[ ] JOUT-109: Build TooltipContent with definitions
-[ ] JOUT-110: Add PitchDisplay component
-[ ] JOUT-111: Create useTokenize hook
-[ ] JOUT-112: Create useDictionaryLookup hook
-[ ] JOUT-113: Integrate canvas with API
+[x] JOUT-101: Implement TokenizerService
+[x] JOUT-102: Create tokenize API routes
+[x] JOUT-103: Implement DictionaryService
+[x] JOUT-104: Create dictionary API routes
+[x] JOUT-105: Build ReadingCanvas component
+[x] JOUT-106: Build TokenDisplay component
+[x] JOUT-107: Build WordTooltip component
+[x] JOUT-108: Implement tooltip positioning logic
+[x] JOUT-109: Build TooltipContent with definitions
+[x] JOUT-110: Add PitchDisplay component
+[x] JOUT-111: Create useTokenize hook
+[x] JOUT-112: Create useDictionaryLookup hook
+[x] JOUT-113: Integrate canvas with API
 
 Phase 2: Data Layer
-[ ] JOUT-201: Setup JMdict with jamdict
-[ ] JOUT-202: Load Kanjium pitch accent data
-[ ] JOUT-203: Implement VocabularyRepository
-[ ] JOUT-204: Implement ContentRepository
-[ ] JOUT-205: Create ContentService
-[ ] JOUT-206: Build content import (text)
-[ ] JOUT-207: Build content import (PDF)
-[ ] JOUT-208: Create content API routes
-[ ] JOUT-209: Build Library page
-[ ] JOUT-210: Build ContentCard component
-[ ] JOUT-211: Build ImportModal component
+[x] JOUT-201: Setup JMdict with jamdict
+[x] JOUT-202: Load Kanjium pitch accent data
+[x] JOUT-203: Implement VocabularyRepository
+[x] JOUT-204: Implement ContentRepository
+[x] JOUT-205: Create ContentService
+[x] JOUT-206: Build content import (text)
+[x] JOUT-207: Build content import (PDF)
+[x] JOUT-208: Create content API routes
+[x] JOUT-209: Build Library page
+[x] JOUT-210: Build ContentCard component
+[x] JOUT-211: Build ImportModal component
 
 Phase 3: Progress System
-[ ] JOUT-301: Implement ProgressRepository
-[ ] JOUT-302: Implement ScoringService
-[ ] JOUT-303: Create progress API routes
-[ ] JOUT-304: Implement SessionRepository
-[ ] JOUT-305: Create session API routes
-[ ] JOUT-306: Build useReadingSession hook
-[ ] JOUT-307: Integrate scoring with reading
-[ ] JOUT-308: Build Progress page
+[x] JOUT-301: Implement ProgressRepository
+[x] JOUT-302: Implement ScoringService
+[x] JOUT-303: Create progress API routes
+[x] JOUT-304: Implement SessionRepository
+[x] JOUT-305: Create session API routes
+[x] JOUT-306: Build useReadingSession hook
+[x] JOUT-307: Integrate scoring with reading
+[x] JOUT-308: Build Progress page
 [ ] JOUT-309: Build ScoreDisplay component
 [ ] JOUT-310: Build WeaknessChart component
 [ ] JOUT-311: Build SessionHistory component
@@ -1911,6 +2376,30 @@ Phase 6: Settings & Polish
 [ ] JOUT-610: Error handling polish
 [ ] JOUT-611: Loading states polish
 [ ] JOUT-612: Final testing pass
+
+Phase 7: Video Watch Mode
+[ ] JOUT-701: Create /watch page route and layout
+[ ] JOUT-702: Implement directory picker for video folder
+[ ] JOUT-703: Build video list view
+[ ] JOUT-704: Create video player component
+[ ] JOUT-705: Add SRT subtitle parser
+[ ] JOUT-706: Sync subtitles with video playback
+[ ] JOUT-707: Display subtitle with JapaneseText hover tooltips
+[ ] JOUT-708: Add Watch navigation link
+
+Phase 8: Difficulty Analysis & Adaptive Content
+[ ] JOUT-801: Implement DifficultyService with jReadability
+[ ] JOUT-802: Integrate KanjiAPI for grade data
+[ ] JOUT-803: Create difficulty analysis API routes
+[ ] JOUT-804: Create UserProficiency model
+[ ] JOUT-805: Implement ProficiencyService
+[ ] JOUT-806: Create proficiency API routes
+[ ] JOUT-807: Update ContentService with difficulty scoring
+[ ] JOUT-808: Build useProficiency hook
+[ ] JOUT-809: Build ProficiencyDisplay component
+[ ] JOUT-810: Integrate proficiency with Progress page
+[ ] JOUT-811: Build content difficulty filter
+[ ] JOUT-812: Update scoring to track per-dimension performance
 ```
 
 ---
@@ -1926,7 +2415,9 @@ Phase 6: Settings & Polish
 | 4: Anki | 3 | 5 | 2 |
 | 5: Audio | 3 | 6 | 2 |
 | 6: Polish | 3 | 12 | 2 |
-| **Total** | **44** | **69** | **22** |
+| 7: Watch Mode | 0 | 10 | 0 |
+| 8: Difficulty | 8 | 6 | 5 |
+| **Total** | **52** | **85** | **27** |
 
 ---
 
@@ -1937,13 +2428,25 @@ JOUT-001 ─┬─► JOUT-002 ─┬─► JOUT-006 ─► JOUT-101 ─► JOUT
           │             │                    │
           │             ├─► JOUT-005         ▼
           │             │              JOUT-203 ─► JOUT-301
-          │             │
-          └─► JOUT-003 ─┴─► JOUT-004 ─► JOUT-008
-                │
-                └─► JOUT-105 ─► JOUT-106 ─► JOUT-107
-                                    │
-                                    ▼
-                              JOUT-113 (integration)
+          │             │                              │
+          └─► JOUT-003 ─┴─► JOUT-004 ─► JOUT-008      │
+                │                                      │
+                ├─► JOUT-105 ─► JOUT-106 ─► JOUT-107  │
+                │                   │                  │
+                │                   ▼                  │
+                │             JOUT-113 (integration)   │
+                │                   │                  │
+                ├─► JOUT-701 ───────┴─► JOUT-707      │
+                │                                      │
+                └─► JOUT-808 ─► JOUT-809 ─► JOUT-810  │
+                         ▲                             │
+                         │                             │
+JOUT-101 ─► JOUT-801 ───┴─► JOUT-802 ─► JOUT-803     │
+                │                                      │
+                ├─► JOUT-804 ─► JOUT-805 ─► JOUT-806  │
+                │                    │                 │
+                │                    ▼                 │
+                └─► JOUT-807 ───────►JOUT-812 ◄───────┘
 ```
 
 Key dependencies:
@@ -1951,3 +2454,6 @@ Key dependencies:
 - All frontend components depend on JOUT-003 (setup)
 - Integration tasks depend on both backend and frontend completion
 - Polish tasks (Phase 6) depend on all feature phases
+- Watch mode (Phase 7) depends on JOUT-113 for JapaneseText integration
+- Difficulty analysis (Phase 8) depends on JOUT-101 (TokenizerService) and JOUT-302 (ScoringService)
+- ProficiencyService integrates with ScoringService for per-dimension tracking

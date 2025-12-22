@@ -129,7 +129,9 @@ joutatsu/
 
 **Next**: Phase 3 - Vocabulary Tracking (SRS, known words, progress)
 
-See IMPLEMENTATION_PLAN.md for the full 62-task breakdown.
+**Upcoming**: Phase 8 - Difficulty Analysis & Adaptive Content (jReadability, KanjiAPI, per-dimension proficiency tracking)
+
+See IMPLEMENTATION_PLAN.md for the full 82-task breakdown.
 
 ## shadcn/ui Configuration
 
@@ -270,6 +272,62 @@ uv run pytest -k "test_merge" -v  # Run tests matching pattern
 **Defensive Rendering**:
 - Always handle undefined/null for optional fields: `{book.title || 'Untitled'}`
 - Use optional chaining for nested access: `item?.property?.value`
+
+## Text Difficulty Analysis System
+
+Joutatsu uses a multi-dimensional difficulty analysis system to estimate user proficiency and match content to their level.
+
+### Difficulty Metrics
+
+Track user proficiency across these dimensions (all scored 0.0-1.0):
+
+| Metric | Description |
+|--------|-------------|
+| `overall_difficulty` | Primary difficulty score based on jReadability model |
+| `kanji_difficulty` | Complexity based on kanji grade levels and density |
+| `lexical_difficulty` | Vocabulary complexity using frequency data |
+| `grammar_complexity` | Grammatical structure complexity |
+| `sentence_complexity` | Sentence length and structure variation |
+| `difficulty_level` | Categorical: Beginner/Elementary/Intermediate/Advanced/Expert |
+
+### External Resources
+
+**jReadability Library** (`jreadability`):
+- GitHub: https://github.com/joshdavham/jreadability
+- Computes Japanese text readability scores
+- Install: `pip install jreadability`
+- Usage:
+  ```python
+  from jreadability import compute_readability
+  score = compute_readability("日本語のテキスト")  # Returns 0.0-1.0
+  ```
+
+**KanjiAPI** (https://kanjiapi.dev):
+- Provides kanji grade levels (grades 1-6 for Joyo, N5-N1 for JLPT)
+- Endpoint: `https://kanjiapi.dev/v1/kanji/{character}`
+- Returns: grade, stroke count, meanings, readings
+- Use for calculating `kanji_difficulty` based on character grades
+
+**Japanese Text Difficulty Dataset** (HuggingFace):
+- Dataset: `ronantakizawa/japanese-text-difficulty`
+- Pre-analyzed sentences with all difficulty metrics
+- Can be used for training/calibrating local models
+- Contains sentences categorized by curriculum level
+
+### Difficulty Calculation Approach
+
+1. **Kanji Analysis**: Map each kanji to grade level via kanjiapi.dev, calculate weighted average
+2. **Vocabulary Analysis**: Use `wordfreq` library for corpus-based frequency data
+3. **Grammar Analysis**: Pattern-based scoring using formal Japanese constructions
+4. **Sentence Analysis**: Length variation and structural complexity measures
+5. **Overall Score**: Combine via jReadability or weighted average of components
+
+### User Proficiency Model
+
+Track user proficiency across each dimension separately:
+- Users may have strong kanji recognition but weak grammar comprehension
+- Adaptive content selection considers per-dimension proficiency
+- Progress page shows breakdown by skill area
 
 ## Reference Documents
 
