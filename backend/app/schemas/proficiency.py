@@ -20,6 +20,17 @@ class ProficiencyStatsResponse(BaseModel):
     just_right_ratings: int
     hard_ratings: int
 
+    # Multi-dimensional proficiency scores
+    kanji_proficiency: float
+    lexical_proficiency: float
+    grammar_proficiency: float
+    reading_proficiency: float
+
+    # Target difficulty levels
+    target_kanji_difficulty: float
+    target_lexical_difficulty: float
+    target_grammar_difficulty: float
+
 
 class ReaderRecommendationsResponse(BaseModel):
     """Reader settings recommendations based on proficiency."""

@@ -36,6 +36,17 @@ class ProficiencyStats:
     just_right_ratings: int
     hard_ratings: int
 
+    # Multi-dimensional proficiency scores
+    kanji_proficiency: float
+    lexical_proficiency: float
+    grammar_proficiency: float
+    reading_proficiency: float
+
+    # Target difficulty levels
+    target_kanji_difficulty: float
+    target_lexical_difficulty: float
+    target_grammar_difficulty: float
+
 
 class ProficiencyService:
     """Service for user proficiency calculations."""
@@ -77,6 +88,13 @@ class ProficiencyService:
             easy_ratings=proficiency.easy_ratings,
             just_right_ratings=proficiency.just_right_ratings,
             hard_ratings=proficiency.hard_ratings,
+            kanji_proficiency=proficiency.kanji_proficiency,
+            lexical_proficiency=proficiency.lexical_proficiency,
+            grammar_proficiency=proficiency.grammar_proficiency,
+            reading_proficiency=proficiency.reading_proficiency,
+            target_kanji_difficulty=proficiency.target_kanji_difficulty,
+            target_lexical_difficulty=proficiency.target_lexical_difficulty,
+            target_grammar_difficulty=proficiency.target_grammar_difficulty,
         )
 
     async def record_reading_session(

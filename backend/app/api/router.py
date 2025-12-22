@@ -7,6 +7,7 @@ from app.api.routes import (
     content,
     data,
     dictionary,
+    difficulty,
     proficiency,
     progress,
     sessions,
@@ -38,6 +39,9 @@ api_router.include_router(aozora.router)
 
 # Proficiency tracking routes
 api_router.include_router(proficiency.router)
+
+# Difficulty analysis routes
+api_router.include_router(difficulty.router)
 
 # Route modules will be included here as they are implemented
 # from app.api.routes import audio, anki, settings

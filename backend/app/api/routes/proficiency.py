@@ -37,6 +37,13 @@ async def get_proficiency_stats(
         easy_ratings=stats.easy_ratings,
         just_right_ratings=stats.just_right_ratings,
         hard_ratings=stats.hard_ratings,
+        kanji_proficiency=stats.kanji_proficiency,
+        lexical_proficiency=stats.lexical_proficiency,
+        grammar_proficiency=stats.grammar_proficiency,
+        reading_proficiency=stats.reading_proficiency,
+        target_kanji_difficulty=stats.target_kanji_difficulty,
+        target_lexical_difficulty=stats.target_lexical_difficulty,
+        target_grammar_difficulty=stats.target_grammar_difficulty,
     )
 
 
@@ -84,6 +91,13 @@ async def record_reading_session(
         easy_ratings=stats.easy_ratings,
         just_right_ratings=stats.just_right_ratings,
         hard_ratings=stats.hard_ratings,
+        kanji_proficiency=stats.kanji_proficiency,
+        lexical_proficiency=stats.lexical_proficiency,
+        grammar_proficiency=stats.grammar_proficiency,
+        reading_proficiency=stats.reading_proficiency,
+        target_kanji_difficulty=stats.target_kanji_difficulty,
+        target_lexical_difficulty=stats.target_lexical_difficulty,
+        target_grammar_difficulty=stats.target_grammar_difficulty,
     )
 
 
@@ -151,4 +165,11 @@ async def update_thresholds(
         easy_ratings=stats.easy_ratings,
         just_right_ratings=stats.just_right_ratings,
         hard_ratings=stats.hard_ratings,
+        kanji_proficiency=stats.kanji_proficiency,
+        lexical_proficiency=stats.lexical_proficiency,
+        grammar_proficiency=stats.grammar_proficiency,
+        reading_proficiency=stats.reading_proficiency,
+        target_kanji_difficulty=stats.target_kanji_difficulty,
+        target_lexical_difficulty=stats.target_lexical_difficulty,
+        target_grammar_difficulty=stats.target_grammar_difficulty,
     )

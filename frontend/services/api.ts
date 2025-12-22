@@ -595,6 +595,28 @@ export interface ProficiencyStats {
   easy_ratings: number;
   just_right_ratings: number;
   hard_ratings: number;
+  // Multi-dimensional proficiency scores (0.0-1.0)
+  kanji_proficiency: number;
+  lexical_proficiency: number;
+  grammar_proficiency: number;
+  reading_proficiency: number;
+  // Target difficulty levels for each dimension
+  target_kanji_difficulty: number;
+  target_lexical_difficulty: number;
+  target_grammar_difficulty: number;
+}
+
+export interface DifficultyMetrics {
+  overall_difficulty: number;
+  kanji_difficulty: number;
+  lexical_difficulty: number;
+  grammar_complexity: number;
+  sentence_complexity: number;
+  difficulty_level: string;
+  total_characters: number;
+  kanji_count: number;
+  unique_kanji: number;
+  avg_sentence_length: number;
 }
 
 export interface ReaderRecommendations {
@@ -697,5 +719,35 @@ export async function updateProficiencyThresholds(
     }),
   });
   if (!res.ok) throw new Error("Failed to update thresholds");
+  return res.json();
+}
+
+// ==================== Difficulty Analysis API ====================
+
+/** Analyze difficulty metrics for given text. */
+export async function analyzeTextDifficulty(text: string): Promise<DifficultyMetrics> {
+  const res = await fetch(`${API_BASE}/api/difficulty/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error("Failed to analyze difficulty");
+  return res.json();
+}
+
+/** Analyze difficulty for stored content. */
+export async function analyzeContentDifficulty(
+  contentId: number,
+  chunkIndex?: number
+): Promise<DifficultyMetrics> {
+  const res = await fetch(`${API_BASE}/api/difficulty/content`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content_id: contentId,
+      chunk_index: chunkIndex,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to analyze content difficulty");
   return res.json();
 }

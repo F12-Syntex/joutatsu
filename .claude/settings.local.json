@@ -28,7 +28,8 @@
       "Bash(timeout:*)",
       "Bash(pnpm lint:*)",
       "Bash(pnpm eslint:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(uv pip show:*)"
     ]
   }
 }

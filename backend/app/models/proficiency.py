@@ -42,6 +42,17 @@ class UserProficiency(SQLModel, table=True):
     just_right_ratings: int = Field(default=0)
     hard_ratings: int = Field(default=0)
 
+    # Multi-dimensional proficiency scores (0.0-1.0, higher = more proficient)
+    kanji_proficiency: float = Field(default=0.0)  # Kanji recognition ability
+    lexical_proficiency: float = Field(default=0.0)  # Vocabulary knowledge
+    grammar_proficiency: float = Field(default=0.0)  # Grammar comprehension
+    reading_proficiency: float = Field(default=0.0)  # Overall reading fluency
+
+    # Target difficulty levels for each dimension (for content matching)
+    target_kanji_difficulty: float = Field(default=0.3)
+    target_lexical_difficulty: float = Field(default=0.3)
+    target_grammar_difficulty: float = Field(default=0.3)
+
     # Auto-adjusted reader settings based on proficiency
     auto_furigana_threshold: float = Field(default=0.0)  # Show for words below this score
     auto_meanings_threshold: float = Field(default=0.0)  # Show meanings for words below this
