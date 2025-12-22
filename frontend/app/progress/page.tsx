@@ -9,6 +9,8 @@ import {
   WeaknessChart,
   SessionHistory,
   ProficiencyDisplay,
+  DifficultySettings,
+  PracticeGenerator,
 } from '@/components/progress'
 import { useProgress } from '@/hooks/use-progress'
 import { useProficiency } from '@/hooks/use-proficiency'
@@ -176,7 +178,7 @@ export default function ProgressPage() {
             </div>
           </div>
 
-          {/* Proficiency and Weakest Words */}
+          {/* Proficiency and Settings */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Proficiency Level */}
             <ProficiencyDisplay
@@ -184,6 +186,15 @@ export default function ProgressPage() {
               recommendations={recommendations}
               isLoading={proficiencyLoading}
             />
+
+            {/* Difficulty Settings */}
+            <DifficultySettings />
+          </div>
+
+          {/* Practice Generator and Weakest Words */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Practice Text Generator */}
+            <PracticeGenerator />
 
             {/* Weakest Words */}
             <div className="p-6 rounded-xl bg-card border border-border/50">

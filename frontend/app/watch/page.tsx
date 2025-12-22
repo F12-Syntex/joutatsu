@@ -1,15 +1,23 @@
 'use client'
 
-import { useCallback } from 'react'
-import { FolderOpen, Video, RefreshCw, ArrowLeft } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { FolderOpen, Video, RefreshCw, ArrowLeft, Globe } from 'lucide-react'
 
 import { MainLayout } from '@/components/layout/main-layout'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useWatchStore } from '@/stores/watch-store'
 import { VideoList } from '@/components/watch/video-list'
 import { VideoPlayer } from '@/components/watch/video-player'
+import { VideoSearchBar } from '@/components/watch/video-search-bar'
+import { OnlineVideoGrid } from '@/components/watch/online-video-grid'
+import { DownloadQueue } from '@/components/watch/download-queue'
+import { useVideoSearch } from '@/hooks/use-video-search'
+import { useDownloads } from '@/hooks/use-downloads'
+import type { OnlineVideo } from '@/types/online-video'
 
 export default function WatchPage() {
+  const [activeTab, setActiveTab] = useState<'local' | 'online'>('local')
   const {
     directoryHandle,
     directoryName,
@@ -22,6 +30,20 @@ export default function WatchPage() {
     selectVideo,
     refresh,
   } = useWatchStore()
+
+  const {
+    results: searchResults,
+    isLoading: isSearching,
+    error: searchError,
+    search,
+  } = useVideoSearch()
+
+  const {
+    downloads,
+    isLoading: isDownloading,
+    startDownload,
+    removeDownload,
+  } = useDownloads()
 
   const handleSelectDirectory = useCallback(async () => {
     try {
@@ -36,6 +58,27 @@ export default function WatchPage() {
       }
     }
   }, [setDirectory])
+
+  const handleDownloadVideo = useCallback(
+    async (video: OnlineVideo) => {
+      await startDownload({
+        video_id: video.video_id,
+        title: video.title,
+        thumbnail_url: video.thumbnail || '',
+      })
+    },
+    [startDownload]
+  )
+
+  const handlePlayDownload = useCallback(
+    (download: any) => {
+      // Refresh local videos to pick up the downloaded file
+      refresh()
+      // Switch to local tab
+      setActiveTab('local')
+    },
+    [refresh]
+  )
 
   // If a video is selected, show the player
   if (selectedVideo) {
@@ -76,63 +119,113 @@ export default function WatchPage() {
 
   return (
     <MainLayout>
-      <div className="min-h-screen">
+      <div className="min-h-screen pb-24">
         {/* Header */}
         <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm border-b">
           <div className="flex items-center justify-between px-6 py-4">
             <div>
               <h1 className="text-xl font-semibold">Watch</h1>
-              {directoryName ? (
-                <p className="text-sm text-muted-foreground">
-                  {videos.length} {videos.length === 1 ? 'video' : 'videos'} in {directoryName}
-                </p>
+              {activeTab === 'local' ? (
+                directoryName ? (
+                  <p className="text-sm text-muted-foreground">
+                    {videos.length} {videos.length === 1 ? 'video' : 'videos'} in {directoryName}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Select a folder to browse videos
+                  </p>
+                )
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Select a folder to browse videos
+                  Browse and download Japanese videos
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              {directoryHandle && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={refresh}
-                  disabled={isLoading}
-                  className="gap-2"
-                >
-                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  Refresh
+            {activeTab === 'local' && (
+              <div className="flex items-center gap-2">
+                {directoryHandle && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={refresh}
+                    disabled={isLoading}
+                    className="gap-2"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                )}
+                <Button onClick={handleSelectDirectory} className="gap-2">
+                  <FolderOpen className="h-4 w-4" />
+                  {directoryHandle ? 'Change Folder' : 'Select Folder'}
                 </Button>
-              )}
-              <Button onClick={handleSelectDirectory} className="gap-2">
-                <FolderOpen className="h-4 w-4" />
-                {directoryHandle ? 'Change Folder' : 'Select Folder'}
-              </Button>
-            </div>
+              </div>
+            )}
           </div>
         </header>
 
         {/* Content */}
         <div className="p-6">
-          {error && (
-            <div className="p-4 mb-4 rounded-lg bg-destructive/10 text-destructive text-sm">
-              {error}
-            </div>
-          )}
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'local' | 'online')}>
+            <TabsList className="mb-6">
+              <TabsTrigger value="local" className="gap-2">
+                <FolderOpen className="h-4 w-4" />
+                Local Files
+              </TabsTrigger>
+              <TabsTrigger value="online" className="gap-2">
+                <Globe className="h-4 w-4" />
+                Browse Online
+              </TabsTrigger>
+            </TabsList>
 
-          {!directoryHandle ? (
-            <EmptyState onSelect={handleSelectDirectory} />
-          ) : isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : videos.length === 0 ? (
-            <NoVideosState onChangeFolder={handleSelectDirectory} onClear={clearDirectory} />
-          ) : (
-            <VideoList videos={videos} onSelect={selectVideo} />
-          )}
+            <TabsContent value="local" className="mt-0">
+              {error && (
+                <div className="p-4 mb-4 rounded-lg bg-destructive/10 text-destructive text-sm">
+                  {error}
+                </div>
+              )}
+
+              {!directoryHandle ? (
+                <EmptyState onSelect={handleSelectDirectory} />
+              ) : isLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : videos.length === 0 ? (
+                <NoVideosState onChangeFolder={handleSelectDirectory} onClear={clearDirectory} />
+              ) : (
+                <VideoList videos={videos} onSelect={selectVideo} />
+              )}
+            </TabsContent>
+
+            <TabsContent value="online" className="mt-0">
+              <div className="space-y-6">
+                {searchError && (
+                  <div className="p-4 rounded-lg bg-destructive/10 text-destructive text-sm">
+                    {searchError}
+                  </div>
+                )}
+
+                <VideoSearchBar onSearch={search} isLoading={isSearching} />
+                <OnlineVideoGrid
+                  videos={searchResults}
+                  onDownload={handleDownloadVideo}
+                  downloadingIds={downloads
+                    .filter((d) => d.status === 'pending' || d.status === 'downloading')
+                    .map((d) => d.video_id)}
+                  isLoading={isSearching}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
+
+        {/* Download Queue */}
+        <DownloadQueue
+          downloads={downloads}
+          onDelete={removeDownload}
+          onPlay={handlePlayDownload}
+        />
       </div>
     </MainLayout>
   )

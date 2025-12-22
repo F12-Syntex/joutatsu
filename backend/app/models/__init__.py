@@ -2,6 +2,7 @@
 
 from app.models.base import BaseModel
 from app.models.content import Content, ContentChunk, ContentImage, ContentType
+from app.models.download import Download
 from app.models.proficiency import DifficultyRating, ProficiencyLevel, UserProficiency
 from app.models.progress import SessionLookup, VocabularyScore
 from app.models.session import ReadingSession
@@ -15,6 +16,7 @@ __all__ = [
     "ContentImage",
     "ContentType",
     "DifficultyRating",
+    "Download",
     "FuriganaMode",
     "ProficiencyLevel",
     "ReadingSession",

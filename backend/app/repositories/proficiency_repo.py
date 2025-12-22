@@ -140,3 +140,25 @@ class ProficiencyRepository(BaseRepository[UserProficiency]):
         statement = statement.limit(limit)
         result = await self.session.exec(statement)
         return list(result.all())
+
+    async def update_target_difficulties(
+        self,
+        kanji: Optional[float] = None,
+        lexical: Optional[float] = None,
+        grammar: Optional[float] = None,
+    ) -> UserProficiency:
+        """Update target difficulty levels for content matching."""
+        proficiency = await self.get_or_create()
+
+        if kanji is not None:
+            proficiency.target_kanji_difficulty = kanji
+        if lexical is not None:
+            proficiency.target_lexical_difficulty = lexical
+        if grammar is not None:
+            proficiency.target_grammar_difficulty = grammar
+
+        proficiency.updated_at = datetime.utcnow()
+        self.session.add(proficiency)
+        await self.session.commit()
+        await self.session.refresh(proficiency)
+        return proficiency

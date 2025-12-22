@@ -751,3 +751,138 @@ export async function analyzeContentDifficulty(
   if (!res.ok) throw new Error("Failed to analyze content difficulty");
   return res.json();
 }
+
+// Video Browse API
+
+export async function searchVideos(
+  query: string,
+  lang: string = "ja",
+  maxResults: number = 20
+): Promise<any[]> {
+  const params = new URLSearchParams({
+    q: query,
+    lang,
+    max_results: maxResults.toString(),
+  });
+  const res = await fetch(`${API_BASE}/api/videos/search?${params}`);
+  if (!res.ok) throw new Error("Failed to search videos");
+  return res.json();
+}
+
+export async function getVideoInfo(videoId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/videos/info/${videoId}`);
+  if (!res.ok) throw new Error("Failed to get video info");
+  return res.json();
+}
+
+export async function queueDownload(request: {
+  video_id: string;
+  title: string;
+  thumbnail_url: string;
+}): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/videos/download`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) throw new Error("Failed to queue download");
+  return res.json();
+}
+
+export async function listDownloads(status?: string): Promise<any[]> {
+  const params = status ? `?status=${status}` : "";
+  const res = await fetch(`${API_BASE}/api/videos/downloads${params}`);
+  if (!res.ok) throw new Error("Failed to list downloads");
+  return res.json();
+}
+
+export async function getDownloadProgress(downloadId: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/api/videos/downloads/${downloadId}`);
+  if (!res.ok) throw new Error("Failed to get download progress");
+  return res.json();
+}
+
+export async function deleteDownload(downloadId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/videos/downloads/${downloadId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete download");
+}
+
+// ==================== Text Generation API ====================
+
+export interface GenerateTextRequest {
+  topic?: string;
+  genre: "general" | "story" | "dialogue" | "news" | "essay";
+  length: "short" | "medium" | "long";
+  kanji_difficulty?: number;
+  lexical_difficulty?: number;
+  grammar_difficulty?: number;
+  use_user_proficiency: boolean;
+  challenge_level: number;
+}
+
+export interface GeneratedTextResponse {
+  text: string;
+  topic: string;
+  genre: string;
+  target_difficulty: number;
+  difficulty_level: string;
+}
+
+export interface ProficiencySettingsResponse {
+  auto_adjust_furigana: boolean;
+  auto_adjust_meanings: boolean;
+  target_kanji_difficulty: number;
+  target_lexical_difficulty: number;
+  target_grammar_difficulty: number;
+  challenge_level: number;
+  kanji_proficiency: number;
+  lexical_proficiency: number;
+  grammar_proficiency: number;
+  reading_proficiency: number;
+}
+
+/** Generate Japanese text at user's difficulty level. */
+export async function generateText(
+  request: Partial<GenerateTextRequest>
+): Promise<GeneratedTextResponse> {
+  const res = await fetch(`${API_BASE}/api/generation/text`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      genre: "general",
+      length: "medium",
+      use_user_proficiency: true,
+      challenge_level: 0.1,
+      ...request,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to generate text");
+  return res.json();
+}
+
+/** Get proficiency-related settings. */
+export async function getProficiencySettings(): Promise<ProficiencySettingsResponse> {
+  const res = await fetch(`${API_BASE}/api/generation/settings`);
+  if (!res.ok) throw new Error("Failed to get proficiency settings");
+  return res.json();
+}
+
+/** Update proficiency-related settings. */
+export async function updateProficiencySettings(settings: {
+  auto_adjust_furigana?: boolean;
+  auto_adjust_meanings?: boolean;
+  target_kanji_difficulty?: number;
+  target_lexical_difficulty?: number;
+  target_grammar_difficulty?: number;
+  challenge_level?: number;
+}): Promise<ProficiencySettingsResponse> {
+  const res = await fetch(`${API_BASE}/api/generation/settings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+  if (!res.ok) throw new Error("Failed to update proficiency settings");
+  return res.json();
+}

@@ -8,10 +8,12 @@ from app.api.routes import (
     data,
     dictionary,
     difficulty,
+    generation,
     proficiency,
     progress,
     sessions,
     tokenize,
+    video_browse,
 )
 
 api_router = APIRouter()
@@ -42,6 +44,12 @@ api_router.include_router(proficiency.router)
 
 # Difficulty analysis routes
 api_router.include_router(difficulty.router)
+
+# Text generation routes
+api_router.include_router(generation.router)
+
+# Video browse and download routes
+api_router.include_router(video_browse.router)
 
 # Route modules will be included here as they are implemented
 # from app.api.routes import audio, anki, settings

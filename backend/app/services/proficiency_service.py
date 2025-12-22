@@ -191,3 +191,16 @@ class ProficiencyService:
             furigana_threshold=furigana_threshold,
             meanings_threshold=meanings_threshold,
         )
+
+    async def update_target_difficulties(
+        self,
+        kanji: Optional[float] = None,
+        lexical: Optional[float] = None,
+        grammar: Optional[float] = None,
+    ) -> UserProficiency:
+        """Update target difficulty levels for content generation/matching."""
+        return await self._proficiency_repo.update_target_difficulties(
+            kanji=kanji,
+            lexical=lexical,
+            grammar=grammar,
+        )

@@ -1,6 +1,6 @@
 'use client'
 
-import { Gauge, Clock, BookText, Search } from 'lucide-react'
+import { Gauge, Clock, BookText, Search, Sparkles, BookOpen, Languages, PenLine } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import type { ProficiencyStats, ReaderRecommendations } from '@/services/api'
@@ -73,6 +73,41 @@ export function ProficiencyDisplay({
           <div className="text-sm text-muted-foreground">
             Based on your reading behavior
           </div>
+        </div>
+      </div>
+
+      {/* Dimensional Proficiency */}
+      <div className="mb-6">
+        <div className="text-xs text-muted-foreground mb-3">Skill Breakdown</div>
+        <div className="space-y-3">
+          <DimensionBar
+            label="Kanji"
+            icon={<Languages className="h-4 w-4" />}
+            proficiency={stats.kanji_proficiency}
+            targetDifficulty={stats.target_kanji_difficulty}
+            color="bg-rose-500"
+          />
+          <DimensionBar
+            label="Vocabulary"
+            icon={<BookOpen className="h-4 w-4" />}
+            proficiency={stats.lexical_proficiency}
+            targetDifficulty={stats.target_lexical_difficulty}
+            color="bg-amber-500"
+          />
+          <DimensionBar
+            label="Grammar"
+            icon={<PenLine className="h-4 w-4" />}
+            proficiency={stats.grammar_proficiency}
+            targetDifficulty={stats.target_grammar_difficulty}
+            color="bg-emerald-500"
+          />
+          <DimensionBar
+            label="Reading"
+            icon={<Sparkles className="h-4 w-4" />}
+            proficiency={stats.reading_proficiency}
+            targetDifficulty={0.5}
+            color="bg-blue-500"
+          />
         </div>
       </div>
 
@@ -166,6 +201,45 @@ export function ProficiencyDisplay({
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+interface DimensionBarProps {
+  label: string
+  icon: React.ReactNode
+  proficiency: number
+  targetDifficulty: number
+  color: string
+}
+
+function DimensionBar({ label, icon, proficiency, targetDifficulty, color }: DimensionBarProps) {
+  const percentage = Math.round(proficiency * 100)
+  const targetPercent = Math.round(targetDifficulty * 100)
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">{icon}</span>
+          <span>{label}</span>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {percentage}%
+          <span className="text-xs ml-1 opacity-60">(target: {targetPercent}%)</span>
+        </div>
+      </div>
+      <div className="relative h-2 bg-muted rounded-full overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all', color)}
+          style={{ width: `${percentage}%` }}
+        />
+        {/* Target marker */}
+        <div
+          className="absolute top-0 h-full w-0.5 bg-foreground/40"
+          style={{ left: `${targetPercent}%` }}
+        />
+      </div>
     </div>
   )
 }

@@ -1,8 +1,8 @@
 # Joutatsu - Implementation Plan
 
 > **Reference**: ARCHITECTURE.md v1.0.0
-> **Total Tasks**: 82
-> **Estimated Duration**: 10 weeks
+> **Total Tasks**: 96
+> **Estimated Duration**: 11 weeks
 
 ---
 
@@ -1929,6 +1929,241 @@ Modified: /frontend/components/layout/sidebar.tsx (if exists)
 
 ---
 
+### JOUT-709: Implement YtDlpService
+
+**Context**
+- Reference: yt-dlp library (https://github.com/yt-dlp/yt-dlp)
+- Depends on: JOUT-002
+- Branch: feature/ytdlp-service
+
+**Objective**
+Create service to interact with yt-dlp for video metadata and downloads.
+
+**Output**
+```
+/backend/app/services/ytdlp_service.py
+/backend/tests/unit/services/test_ytdlp_service.py
+```
+
+**Key Dependencies**
+- yt-dlp
+
+**Acceptance Criteria**
+- [ ] Search videos by keyword
+- [ ] Get video metadata (title, thumbnail, duration, available subtitles)
+- [ ] Filter results to only Japanese subtitle videos
+- [ ] Download video with specific quality
+- [ ] Download Japanese subtitles (.srt format)
+- [ ] Progress callback support
+- [ ] Tests pass
+
+---
+
+### JOUT-710: Implement DownloadManager
+
+**Context**
+- Reference: ARCHITECTURE.md Section 7
+- Depends on: JOUT-709
+- Branch: feature/download-manager
+
+**Objective**
+Queue-based download management with progress tracking.
+
+**Output**
+```
+/backend/app/models/download.py
+/backend/app/services/download_manager.py
+/backend/tests/unit/services/test_download_manager.py
+```
+
+**Schema**
+```python
+class Download(SQLModel, table=True):
+    id: int
+    video_id: str  # YouTube video ID or URL hash
+    title: str
+    thumbnail_url: str
+    status: str  # pending, downloading, completed, failed
+    progress: float  # 0.0-1.0
+    file_path: Optional[str]
+    subtitle_path: Optional[str]
+    error_message: Optional[str]
+    created_at: datetime
+    completed_at: Optional[datetime]
+```
+
+**Acceptance Criteria**
+- [ ] Queue downloads with priority
+- [ ] Track download progress
+- [ ] Store completed downloads in database
+- [ ] Automatic retry on failure (max 3 attempts)
+- [ ] Cleanup failed downloads
+- [ ] Tests pass
+
+---
+
+### JOUT-711: Create video browse API routes
+
+**Context**
+- Reference: ARCHITECTURE.md Section 5.2
+- Depends on: JOUT-709, JOUT-710
+- Branch: feature/video-browse-api
+
+**Objective**
+REST API for browsing and downloading online videos.
+
+**Output**
+```
+/backend/app/api/routes/video_browse.py
+/backend/app/schemas/video_browse.py
+/backend/tests/integration/test_video_browse_api.py
+```
+
+**Acceptance Criteria**
+- [ ] GET /api/videos/search?q=keyword&lang=ja - Search videos with Japanese subs
+- [ ] GET /api/videos/{video_id}/info - Get video metadata
+- [ ] POST /api/videos/{video_id}/download - Queue video download
+- [ ] GET /api/downloads - List all downloads with status
+- [ ] GET /api/downloads/{id}/progress - Get download progress
+- [ ] DELETE /api/downloads/{id} - Cancel/delete download
+- [ ] Integration tests pass
+
+---
+
+### JOUT-712: Build VideoSearchBar component
+
+**Context**
+- Reference: ARCHITECTURE.md Section 6.1
+- Depends on: JOUT-711
+- Branch: feature/video-search
+
+**Objective**
+Search bar for finding online videos.
+
+**Output**
+```
+/frontend/components/watch/video-search-bar.tsx
+/frontend/hooks/use-video-search.ts
+```
+
+**Acceptance Criteria**
+- [ ] Search input with debouncing
+- [ ] Search button
+- [ ] Loading indicator
+- [ ] Auto-filter for Japanese subtitles
+- [ ] Clear search button
+- [ ] Recent searches dropdown
+
+---
+
+### JOUT-713: Build OnlineVideoGrid component
+
+**Context**
+- Reference: ARCHITECTURE.md Section 6.1
+- Depends on: JOUT-712
+- Branch: feature/online-video-grid
+
+**Objective**
+Grid display of online video search results.
+
+**Output**
+```
+/frontend/components/watch/online-video-grid.tsx
+/frontend/components/watch/online-video-card.tsx
+/frontend/types/online-video.ts
+```
+
+**Acceptance Criteria**
+- [ ] Grid layout of video cards
+- [ ] Thumbnail with duration overlay
+- [ ] Title and channel name
+- [ ] Japanese subtitle badge
+- [ ] Download button on hover
+- [ ] Pagination or infinite scroll
+- [ ] Empty state when no results
+
+---
+
+### JOUT-714: Build DownloadQueue component
+
+**Context**
+- Reference: ARCHITECTURE.md Section 6.1
+- Depends on: JOUT-711
+- Branch: feature/download-queue
+
+**Objective**
+Download queue UI with progress tracking.
+
+**Output**
+```
+/frontend/components/watch/download-queue.tsx
+/frontend/components/watch/download-item.tsx
+/frontend/hooks/use-downloads.ts
+/frontend/stores/download-store.ts
+```
+
+**Acceptance Criteria**
+- [ ] List of queued/active downloads
+- [ ] Progress bar per download
+- [ ] Cancel button
+- [ ] Retry failed downloads
+- [ ] "Open in player" when complete
+- [ ] Auto-refresh every 2 seconds
+- [ ] Collapsible/expandable panel
+
+---
+
+### JOUT-715: Integrate online browse with /watch page
+
+**Context**
+- Reference: JOUT-701
+- Depends on: JOUT-713, JOUT-714
+- Branch: feature/watch-online-integration
+
+**Objective**
+Add online video browsing tab to /watch page.
+
+**Output**
+```
+Modified: /frontend/app/watch/page.tsx
+```
+
+**Acceptance Criteria**
+- [ ] Tab switcher: "Local Files" / "Browse Online"
+- [ ] Search bar in online tab
+- [ ] Video grid with search results
+- [ ] Download queue at bottom
+- [ ] Downloaded videos appear in local files tab
+- [ ] Persistent tab selection
+
+---
+
+### JOUT-716: Add subtitle language detection
+
+**Context**
+- Reference: JOUT-709
+- Depends on: JOUT-709
+- Branch: feature/subtitle-language-detection
+
+**Objective**
+Enhanced subtitle filtering by language.
+
+**Output**
+```
+Modified: /backend/app/services/ytdlp_service.py
+/frontend/components/watch/language-filter.tsx
+```
+
+**Acceptance Criteria**
+- [ ] Detect all available subtitle languages
+- [ ] Filter by multiple languages (ja, en, etc.)
+- [ ] Show subtitle language badges on cards
+- [ ] Preference to download Japanese subs first
+- [ ] Fallback to auto-generated if manual unavailable
+- [ ] Warning badge for auto-generated subs
+
+---
+
 ## Phase 8: Difficulty Analysis & Adaptive Content (Week 10)
 
 ### JOUT-801: Implement DifficultyService with jReadability
@@ -2261,10 +2496,10 @@ Modified: /backend/app/models/session.py
 | 4 | 6 | Anki synchronization |
 | 5 | 7 | Audio and TTS |
 | 6 | 12 | Settings, polish, optimization |
-| 7 | 8 | Video watch mode with subtitles |
+| 7 | 16 | Video watch mode with subtitles + online browse |
 | 8 | 12 | Difficulty analysis, adaptive content, proficiency tracking |
 
-**Total: 82 tasks**
+**Total: 96 tasks**
 
 ---
 
@@ -2386,6 +2621,14 @@ Phase 7: Video Watch Mode
 [ ] JOUT-706: Sync subtitles with video playback
 [ ] JOUT-707: Display subtitle with JapaneseText hover tooltips
 [ ] JOUT-708: Add Watch navigation link
+[ ] JOUT-709: Implement YtDlpService
+[ ] JOUT-710: Implement DownloadManager
+[ ] JOUT-711: Create video browse API routes
+[ ] JOUT-712: Build VideoSearchBar component
+[ ] JOUT-713: Build OnlineVideoGrid component
+[ ] JOUT-714: Build DownloadQueue component
+[ ] JOUT-715: Integrate online browse with /watch page
+[ ] JOUT-716: Add subtitle language detection
 
 Phase 8: Difficulty Analysis & Adaptive Content
 [ ] JOUT-801: Implement DifficultyService with jReadability
@@ -2415,9 +2658,9 @@ Phase 8: Difficulty Analysis & Adaptive Content
 | 4: Anki | 3 | 5 | 2 |
 | 5: Audio | 3 | 6 | 2 |
 | 6: Polish | 3 | 12 | 2 |
-| 7: Watch Mode | 0 | 10 | 0 |
+| 7: Watch Mode | 5 | 20 | 3 |
 | 8: Difficulty | 8 | 6 | 5 |
-| **Total** | **52** | **85** | **27** |
+| **Total** | **57** | **95** | **30** |
 
 ---
 
