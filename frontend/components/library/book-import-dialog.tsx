@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { FileText, Loader2 } from 'lucide-react'
+import { FileText, Loader2, Upload, BookOpen } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -17,17 +17,21 @@ import {
   ModalFooter,
 } from '@/components/ui/modal'
 import { useLibraryStore } from '@/stores/library-store'
-import { importPDF } from '@/services/api'
+import { importPDF, getContent } from '@/services/api'
+import { AozoraBrowser } from '@/components/aozora'
 
 interface BookImportDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
+type TabType = 'file' | 'aozora'
+
 export function BookImportDialog({ open, onOpenChange }: BookImportDialogProps) {
   const router = useRouter()
   const { addBook, addBackendBook } = useLibraryStore()
 
+  const [activeTab, setActiveTab] = useState<TabType>('aozora')
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
   const [content, setContent] = useState('')
@@ -45,6 +49,18 @@ export function BookImportDialog({ open, onOpenChange }: BookImportDialogProps) 
     setPdfFile(null)
     setError(null)
   }, [])
+
+  const handleAozoraImport = useCallback(async (contentId: number) => {
+    try {
+      const contentResponse = await getContent(contentId)
+      addBackendBook(contentResponse)
+      reset()
+      onOpenChange(false)
+      router.push(`/library/${contentId}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add to library')
+    }
+  }, [addBackendBook, reset, onOpenChange, router])
 
   const handleImport = useCallback(async () => {
     const finalTitle = title.trim() || fileName || 'Untitled'
@@ -121,121 +137,157 @@ export function BookImportDialog({ open, onOpenChange }: BookImportDialogProps) 
 
   return (
     <Modal open={open} onOpenChange={onOpenChange}>
-      <ModalContent showClose={false}>
+      <ModalContent showClose={false} className="max-w-2xl">
         <ModalHeader>
-          <ModalTitle>Import Book</ModalTitle>
+          <ModalTitle>Add to Library</ModalTitle>
         </ModalHeader>
 
-        <ModalBody className="space-y-4">
+        {/* Tabs */}
+        <div className="flex border-b border-border px-4">
+          <button
+            onClick={() => setActiveTab('aozora')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+              activeTab === 'aozora'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <BookOpen className="h-4 w-4" />
+            Browse Aozora
+          </button>
+          <button
+            onClick={() => setActiveTab('file')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+              activeTab === 'file'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Upload className="h-4 w-4" />
+            Import File
+          </button>
+        </div>
+
+        <ModalBody className="h-[450px] overflow-hidden">
           {/* Error display */}
           {error && (
-            <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+            <div className="p-3 mb-4 rounded-lg bg-destructive/10 text-destructive text-sm">
               {error}
             </div>
           )}
 
-          {/* Content first - most important */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-muted-foreground">Content</label>
-              {charCount > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  {charCount.toLocaleString()} chars · ~{estimatedPages} pages
-                </span>
-              )}
-              {pdfFile && (
-                <span className="text-xs text-muted-foreground">
-                  PDF · {(pdfFile.size / 1024).toFixed(0)} KB
-                </span>
-              )}
-            </div>
-
-            {content ? (
-              <Textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="min-h-[160px] text-sm resize-none"
-              />
-            ) : pdfFile ? (
-              <div className="min-h-[160px] rounded-xl border border-border bg-muted/30 flex flex-col items-center justify-center gap-2 p-6">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <FileText className="h-5 w-5 text-primary" />
+          {activeTab === 'aozora' ? (
+            <AozoraBrowser onImport={handleAozoraImport} className="h-full max-h-full" />
+          ) : (
+            <div className="space-y-4">
+              {/* Content first - most important */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-muted-foreground">Content</label>
+                  {charCount > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {charCount.toLocaleString()} chars · ~{estimatedPages} pages
+                    </span>
+                  )}
+                  {pdfFile && (
+                    <span className="text-xs text-muted-foreground">
+                      PDF · {(pdfFile.size / 1024).toFixed(0)} KB
+                    </span>
+                  )}
                 </div>
-                <p className="text-sm font-medium">{pdfFile.name}</p>
-                <p className="text-xs text-muted-foreground">Ready to import</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setPdfFile(null)
-                    setFileName('')
-                  }}
-                  className="mt-1 h-7 text-xs"
-                >
-                  Remove
-                </Button>
-              </div>
-            ) : (
-              <DropZone
-                isDragging={isDragging}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  setIsDragging(true)
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={handleDrop}
-                onFileSelect={handleFileSelect}
-              />
-            )}
-          </div>
 
-          {/* Title & Author - optional, shown after content or PDF */}
-          {(content || pdfFile) && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">
-                  Title <span className="opacity-50">(optional)</span>
-                </label>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={fileName || 'Untitled'}
-                  className="h-9"
-                />
+                {content ? (
+                  <Textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    className="min-h-[160px] text-sm resize-none"
+                  />
+                ) : pdfFile ? (
+                  <div className="min-h-[160px] rounded-xl border border-border bg-muted/30 flex flex-col items-center justify-center gap-2 p-6">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <p className="text-sm font-medium">{pdfFile.name}</p>
+                    <p className="text-xs text-muted-foreground">Ready to import</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setPdfFile(null)
+                        setFileName('')
+                      }}
+                      className="mt-1 h-7 text-xs"
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ) : (
+                  <DropZone
+                    isDragging={isDragging}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      setIsDragging(true)
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                    onFileSelect={handleFileSelect}
+                  />
+                )}
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">
-                  Author <span className="opacity-50">(optional)</span>
-                </label>
-                <Input
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  placeholder="Unknown"
-                  className="h-9"
-                />
-              </div>
+
+              {/* Title & Author - optional, shown after content or PDF */}
+              {(content || pdfFile) && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">
+                      Title <span className="opacity-50">(optional)</span>
+                    </label>
+                    <Input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder={fileName || 'Untitled'}
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">
+                      Author <span className="opacity-50">(optional)</span>
+                    </label>
+                    <Input
+                      value={author}
+                      onChange={(e) => setAuthor(e.target.value)}
+                      placeholder="Unknown"
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </ModalBody>
 
-        <ModalFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleImport}
-            disabled={(!content.trim() && !pdfFile) || isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Importing...
-              </>
-            ) : (
-              'Import'
-            )}
-          </Button>
-        </ModalFooter>
+        {activeTab === 'file' && (
+          <ModalFooter>
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImport}
+              disabled={(!content.trim() && !pdfFile) || isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                'Import'
+              )}
+            </Button>
+          </ModalFooter>
+        )}
       </ModalContent>
     </Modal>
   )

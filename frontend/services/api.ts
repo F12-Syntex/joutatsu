@@ -380,3 +380,409 @@ export async function getContentImages(contentId: number): Promise<ContentImage[
   if (!res.ok) throw new Error("Failed to get images");
   return res.json();
 }
+
+// ==================== Progress API ====================
+
+export interface ScoreUpdate {
+  vocabulary_id: number;
+  old_score: number;
+  new_score: number;
+  times_seen: number;
+  times_looked_up: number;
+  consecutive_correct: number;
+}
+
+export interface VocabularyScore {
+  vocabulary_id: number;
+  dictionary_form: string;
+  surface: string;
+  reading: string;
+  score: number;
+  times_seen: number;
+  times_looked_up: number;
+  consecutive_correct: number;
+  last_seen: string;
+}
+
+export interface ProgressSummary {
+  total_vocabulary: number;
+  known_words: number;
+  learning_words: number;
+  average_score: number;
+  mastery_percentage: number;
+  total_lookups: number;
+  total_words_seen: number;
+}
+
+export interface WeakVocabularyResponse {
+  items: VocabularyScore[];
+  total: number;
+}
+
+/** Get overall progress summary. */
+export async function getProgressSummary(): Promise<ProgressSummary> {
+  const res = await fetch(`${API_BASE}/api/progress/summary`);
+  if (!res.ok) throw new Error("Failed to get progress summary");
+  return res.json();
+}
+
+/** Get vocabulary items with lowest scores. */
+export async function getWeakestVocabulary(limit = 20): Promise<WeakVocabularyResponse> {
+  const res = await fetch(`${API_BASE}/api/progress/weakest?limit=${limit}`);
+  if (!res.ok) throw new Error("Failed to get weakest vocabulary");
+  return res.json();
+}
+
+/** Record that a word was looked up. */
+export async function recordLookup(dictionaryForm: string): Promise<ScoreUpdate> {
+  const res = await fetch(`${API_BASE}/api/progress/record-lookup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ dictionary_form: dictionaryForm }),
+  });
+  if (!res.ok) throw new Error("Failed to record lookup");
+  return res.json();
+}
+
+/** Record words read, some with lookups. */
+export async function recordRead(
+  dictionaryForms: string[],
+  lookedUpForms: string[] = []
+): Promise<ScoreUpdate[]> {
+  const res = await fetch(`${API_BASE}/api/progress/record-read`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dictionary_forms: dictionaryForms,
+      looked_up_forms: lookedUpForms,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to record read");
+  return res.json();
+}
+
+/** Get overall mastery score. */
+export async function getOverallScore(): Promise<number> {
+  const res = await fetch(`${API_BASE}/api/progress/score`);
+  if (!res.ok) throw new Error("Failed to get overall score");
+  return res.json();
+}
+
+// ==================== Session API ====================
+
+export interface ReadingSession {
+  id: number;
+  content_id: number;
+  started_at: string;
+  ended_at: string | null;
+  tokens_read: number;
+  lookups_count: number;
+  chunk_position: number;
+}
+
+export interface SessionWithContent {
+  id: number;
+  content_id: number;
+  content_title: string;
+  started_at: string;
+  ended_at: string | null;
+  tokens_read: number;
+  lookups_count: number;
+  chunk_position: number;
+}
+
+export interface SessionStats {
+  total_sessions: number;
+  completed_sessions: number;
+  total_tokens_read: number;
+  total_lookups: number;
+}
+
+export interface SessionHistory {
+  sessions: SessionWithContent[];
+  total: number;
+}
+
+/** Start a new reading session. */
+export async function startSession(
+  contentId: number,
+  chunkPosition = 0
+): Promise<ReadingSession> {
+  const res = await fetch(`${API_BASE}/api/sessions/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content_id: contentId,
+      chunk_position: chunkPosition,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to start session");
+  return res.json();
+}
+
+/** End a reading session. */
+export async function endSession(
+  sessionId: number,
+  tokensRead: number,
+  lookupsCount: number,
+  chunkPosition: number
+): Promise<ReadingSession> {
+  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/end`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tokens_read: tokensRead,
+      lookups_count: lookupsCount,
+      chunk_position: chunkPosition,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to end session");
+  return res.json();
+}
+
+/** Update session progress without ending it. */
+export async function updateSessionProgress(
+  sessionId: number,
+  tokensRead: number,
+  lookupsCount: number,
+  chunkPosition: number
+): Promise<ReadingSession> {
+  const res = await fetch(`${API_BASE}/api/sessions/${sessionId}/progress`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tokens_read: tokensRead,
+      lookups_count: lookupsCount,
+      chunk_position: chunkPosition,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to update progress");
+  return res.json();
+}
+
+/** Get active session for content (for resuming). */
+export async function getActiveSession(contentId: number): Promise<ReadingSession | null> {
+  const res = await fetch(`${API_BASE}/api/sessions/content/${contentId}/active`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error("Failed to get active session");
+  return res.json();
+}
+
+/** Get session history. */
+export async function getSessionHistory(limit = 20): Promise<SessionHistory> {
+  const res = await fetch(`${API_BASE}/api/sessions/history?limit=${limit}`);
+  if (!res.ok) throw new Error("Failed to get session history");
+  return res.json();
+}
+
+/** Get session statistics. */
+export async function getSessionStats(): Promise<SessionStats> {
+  const res = await fetch(`${API_BASE}/api/sessions/stats`);
+  if (!res.ok) throw new Error("Failed to get session stats");
+  return res.json();
+}
+
+// ==================== Aozora Bunko API ====================
+
+export interface AozoraWork {
+  work_id: string;
+  title: string;
+  author_name: string;
+  author_id: string;
+  text_url: string | null;
+  html_url: string | null;
+  first_published: string | null;
+  character_type: string | null;
+}
+
+export interface AozoraSearchResponse {
+  works: AozoraWork[];
+  total: number;
+}
+
+export interface AozoraAuthor {
+  author_id: string;
+  author_name: string;
+  work_count: number;
+}
+
+export interface AozoraAuthorsResponse {
+  authors: AozoraAuthor[];
+}
+
+export interface AozoraTextResponse {
+  work_id: string;
+  title: string;
+  author_name: string;
+  text: string;
+}
+
+/** Search Aozora Bunko works. */
+export async function searchAozoraWorks(options: {
+  query?: string;
+  author?: string;
+  authorId?: string;
+  limit?: number;
+  modernOnly?: boolean;
+} = {}): Promise<AozoraSearchResponse> {
+  const { query = "", author = "", authorId = "", limit = 50, modernOnly = true } = options;
+  const params = new URLSearchParams();
+  if (query) params.append("query", query);
+  if (author) params.append("author", author);
+  if (authorId) params.append("author_id", authorId);
+  params.append("limit", String(limit));
+  params.append("modern_only", String(modernOnly));
+
+  const res = await fetch(`${API_BASE}/api/aozora/search?${params}`);
+  if (!res.ok) throw new Error("Failed to search Aozora");
+  return res.json();
+}
+
+/** Get popular Aozora authors. */
+export async function getAozoraAuthors(): Promise<AozoraAuthorsResponse> {
+  const res = await fetch(`${API_BASE}/api/aozora/authors`);
+  if (!res.ok) throw new Error("Failed to get authors");
+  return res.json();
+}
+
+/** Get work text content. */
+export async function getAozoraWorkText(workId: string): Promise<AozoraTextResponse> {
+  const res = await fetch(`${API_BASE}/api/aozora/work/${workId}`);
+  if (!res.ok) throw new Error("Failed to get work text");
+  return res.json();
+}
+
+/** Import an Aozora work to library. */
+export async function importAozoraWork(
+  workId: string,
+  preTokenize = true
+): Promise<ContentResponse> {
+  const res = await fetch(`${API_BASE}/api/aozora/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      work_id: workId,
+      pre_tokenize: preTokenize,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to import work");
+  return res.json();
+}
+
+// ==================== Proficiency API ====================
+
+export interface ProficiencyStats {
+  level: string;
+  total_characters_read: number;
+  total_tokens_read: number;
+  total_lookups: number;
+  total_reading_time_minutes: number;
+  lookup_rate: number;
+  reading_speed: number;
+  easy_ratings: number;
+  just_right_ratings: number;
+  hard_ratings: number;
+}
+
+export interface ReaderRecommendations {
+  show_furigana: "all" | "unknown" | "none";
+  show_meanings: boolean;
+  furigana_threshold: number;
+  highlight_unknown: boolean;
+  suggested_level: string;
+}
+
+export interface DifficultyRatingRecord {
+  id: number;
+  content_id: number;
+  rating: "easy" | "just_right" | "hard";
+  feedback: string | null;
+  chunk_position: number | null;
+  rated_at: string;
+}
+
+/** Get user proficiency statistics. */
+export async function getProficiencyStats(): Promise<ProficiencyStats> {
+  const res = await fetch(`${API_BASE}/api/proficiency/stats`);
+  if (!res.ok) throw new Error("Failed to get proficiency stats");
+  return res.json();
+}
+
+/** Get recommended reader settings based on proficiency. */
+export async function getReaderRecommendations(): Promise<ReaderRecommendations> {
+  const res = await fetch(`${API_BASE}/api/proficiency/recommendations`);
+  if (!res.ok) throw new Error("Failed to get recommendations");
+  return res.json();
+}
+
+/** Record metrics from a reading session. */
+export async function recordReadingSession(
+  charactersRead: number,
+  tokensRead: number,
+  lookups: number,
+  readingTimeSeconds: number
+): Promise<ProficiencyStats> {
+  const res = await fetch(`${API_BASE}/api/proficiency/record-reading`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      characters_read: charactersRead,
+      tokens_read: tokensRead,
+      lookups,
+      reading_time_seconds: readingTimeSeconds,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to record reading");
+  return res.json();
+}
+
+/** Record difficulty rating for content. */
+export async function recordDifficultyRating(
+  contentId: number,
+  rating: "easy" | "just_right" | "hard",
+  feedback?: string,
+  chunkPosition?: number
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/proficiency/record-difficulty`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      content_id: contentId,
+      rating,
+      feedback,
+      chunk_position: chunkPosition,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to record difficulty");
+}
+
+/** Get difficulty ratings. */
+export async function getDifficultyRatings(
+  contentId?: number,
+  limit = 50
+): Promise<DifficultyRatingRecord[]> {
+  const params = new URLSearchParams();
+  if (contentId !== undefined) params.append("content_id", String(contentId));
+  params.append("limit", String(limit));
+
+  const res = await fetch(`${API_BASE}/api/proficiency/difficulty-ratings?${params}`);
+  if (!res.ok) throw new Error("Failed to get difficulty ratings");
+  return res.json();
+}
+
+/** Update auto-adjustment thresholds. */
+export async function updateProficiencyThresholds(
+  furiganaThreshold?: number,
+  meaningsThreshold?: number
+): Promise<ProficiencyStats> {
+  const res = await fetch(`${API_BASE}/api/proficiency/thresholds`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      furigana_threshold: furiganaThreshold,
+      meanings_threshold: meaningsThreshold,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to update thresholds");
+  return res.json();
+}

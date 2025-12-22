@@ -22,6 +22,8 @@ export interface JapaneseTextProps {
   fontFamily?: string
   /** Whether to show furigana above kanji */
   showFurigana?: boolean
+  /** Whether to show word meanings above words */
+  showMeanings?: boolean
   /** Whether to color by part of speech */
   colorByPos?: boolean
   /** Colors for each part of speech */
@@ -32,6 +34,8 @@ export interface JapaneseTextProps {
   className?: string
   /** Called when tokenization completes */
   onTokenize?: (tokens: Token[]) => void
+  /** Called when a word is looked up (for progress tracking) */
+  onLookup?: (dictionaryForm: string) => void
 }
 
 const defaultPosColors: PosColors = {
@@ -50,11 +54,13 @@ export function JapaneseText({
   lineHeight = 2,
   fontFamily,
   showFurigana = true,
+  showMeanings = false,
   colorByPos = false,
   posColors = defaultPosColors,
   writingMode = 'horizontal-tb',
   className,
   onTokenize,
+  onLookup,
 }: JapaneseTextProps) {
   const isVertical = writingMode === 'vertical-rl'
   const [tokens, setTokens] = useState<Token[]>([])
@@ -66,6 +72,7 @@ export function JapaneseText({
   const tooltipRef = useRef<HTMLDivElement>(null)
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
   const [mounted, setMounted] = useState(false)
+  const [meanings, setMeanings] = useState<Map<string, string>>(new Map())
 
   useEffect(() => {
     setMounted(true)
@@ -107,6 +114,75 @@ export function JapaneseText({
     }
   }, [text, onTokenize])
 
+  // Fetch meanings for tokens when showMeanings is enabled
+  useEffect(() => {
+    if (!showMeanings || tokens.length === 0) {
+      setMeanings(new Map())
+      return
+    }
+
+    let cancelled = false
+
+    // Get unique dictionary forms for content words (not punctuation/particles)
+    const contentPosTypes = ['動詞', '名詞', '形容詞', '副詞', '代名詞', '形状詞']
+    const uniqueForms = [...new Set(
+      tokens
+        .filter((t) => contentPosTypes.some((pos) => t.pos_short.includes(pos)))
+        .map((t) => t.dictionary_form)
+    )]
+
+    // Fetch meanings in batches
+    const fetchMeanings = async () => {
+      const newMeanings = new Map<string, string>()
+
+      // Fetch in parallel with a limit
+      const batchSize = 10
+      for (let i = 0; i < uniqueForms.length; i += batchSize) {
+        if (cancelled) return
+
+        const batch = uniqueForms.slice(i, i + batchSize)
+        const results = await Promise.all(
+          batch.map(async (form) => {
+            try {
+              const response = await lookupApi(form, 1)
+              if (response.entries.length > 0) {
+                const firstEntry = response.entries[0]
+                if (firstEntry.senses.length > 0) {
+                  // Get first gloss, clean up and truncate
+                  let gloss = firstEntry.senses[0].glosses[0] || ''
+                  // Remove parenthetical content and clean up
+                  gloss = gloss.replace(/\s*\([^)]*\)/g, '').trim()
+                  // Take first part if comma-separated
+                  gloss = gloss.split(',')[0].trim()
+                  // Truncate if still too long
+                  if (gloss.length > 12) gloss = gloss.slice(0, 10) + '…'
+                  return { form, meaning: gloss }
+                }
+              }
+              return { form, meaning: '' }
+            } catch {
+              return { form, meaning: '' }
+            }
+          })
+        )
+
+        results.forEach(({ form, meaning }) => {
+          if (meaning) newMeanings.set(form, meaning)
+        })
+      }
+
+      if (!cancelled) {
+        setMeanings(newMeanings)
+      }
+    }
+
+    fetchMeanings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [showMeanings, tokens])
+
   // Dictionary lookup when hovering
   const handleTokenHover = useCallback(
     (token: Token | null, element: HTMLSpanElement | null) => {
@@ -114,6 +190,9 @@ export function JapaneseText({
       targetRef.current = element
 
       if (token && element) {
+        // Notify parent that a word was looked up (for progress tracking)
+        onLookup?.(token.dictionary_form)
+
         setIsLookingUp(true)
         lookupApi(token.dictionary_form, 5)
           .then((response) => {
@@ -172,7 +251,7 @@ export function JapaneseText({
         setEntries([])
       }
     },
-    []
+    [isVertical, onLookup]
   )
 
   if (isLoading) {
@@ -214,6 +293,8 @@ export function JapaneseText({
             token={token}
             isHovered={hoveredToken === token}
             showFurigana={showFurigana}
+            showMeanings={showMeanings}
+            meaning={meanings.get(token.dictionary_form)}
             colorByPos={colorByPos}
             posColors={posColors}
             onHover={handleTokenHover}
@@ -254,6 +335,8 @@ interface TokenSpanProps {
   token: Token
   isHovered: boolean
   showFurigana: boolean
+  showMeanings: boolean
+  meaning?: string
   colorByPos: boolean
   posColors: PosColors
   onHover: (token: Token | null, element: HTMLSpanElement | null) => void
@@ -263,6 +346,8 @@ const TokenSpan = memo(function TokenSpan({
   token,
   isHovered,
   showFurigana,
+  showMeanings,
+  meaning,
   colorByPos,
   posColors,
   onHover,
@@ -270,6 +355,7 @@ const TokenSpan = memo(function TokenSpan({
   const ref = useRef<HTMLSpanElement>(null)
   const isPunctuation = token.pos_short === '補助記号'
   const needsFurigana = showFurigana && hasKanji(token.surface) && !isPunctuation
+  const needsMeaning = showMeanings && meaning && !isPunctuation
   const isInteractive = !isPunctuation
 
   const handleMouseEnter = useCallback(() => {
@@ -288,6 +374,12 @@ const TokenSpan = memo(function TokenSpan({
   const posColorKey = getPosColorKey(token.pos_short)
   const textColor = colorByPos ? posColors[posColorKey] : undefined
 
+  // Build the annotation text (meaning + furigana combined)
+  const annotations: string[] = []
+  if (needsMeaning) annotations.push(meaning!)
+  if (needsFurigana) annotations.push(katakanaToHiragana(token.reading))
+  const hasAnnotation = annotations.length > 0
+
   return (
     <span
       ref={ref}
@@ -301,12 +393,21 @@ const TokenSpan = memo(function TokenSpan({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {needsFurigana ? (
+      {hasAnnotation ? (
         <ruby>
           {token.surface}
           <rp>(</rp>
-          <rt className="text-[0.5em] opacity-60 font-normal">
-            {katakanaToHiragana(token.reading)}
+          <rt className="text-[0.5em] opacity-60 font-normal leading-tight">
+            {needsMeaning && needsFurigana ? (
+              <span className="flex flex-col items-center">
+                <span className="text-[0.7em] opacity-70">{meaning}</span>
+                <span>{katakanaToHiragana(token.reading)}</span>
+              </span>
+            ) : needsMeaning ? (
+              <span className="opacity-70">{meaning}</span>
+            ) : (
+              katakanaToHiragana(token.reading)
+            )}
           </rt>
           <rp>)</rp>
         </ruby>

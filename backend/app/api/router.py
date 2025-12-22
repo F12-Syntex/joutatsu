@@ -2,7 +2,16 @@
 
 from fastapi import APIRouter
 
-from app.api.routes import content, data, dictionary, tokenize
+from app.api.routes import (
+    aozora,
+    content,
+    data,
+    dictionary,
+    proficiency,
+    progress,
+    sessions,
+    tokenize,
+)
 
 api_router = APIRouter()
 
@@ -18,9 +27,20 @@ api_router.include_router(dictionary.router)
 # Content management routes
 api_router.include_router(content.router)
 
+# Progress and scoring routes
+api_router.include_router(progress.router)
+
+# Session tracking routes
+api_router.include_router(sessions.router)
+
+# Aozora Bunko routes
+api_router.include_router(aozora.router)
+
+# Proficiency tracking routes
+api_router.include_router(proficiency.router)
+
 # Route modules will be included here as they are implemented
-# from app.api.routes import audio, progress, anki, settings
+# from app.api.routes import audio, anki, settings
 # api_router.include_router(audio.router, prefix="/audio", tags=["audio"])
-# api_router.include_router(progress.router, prefix="/progress", tags=["progress"])
 # api_router.include_router(anki.router, prefix="/anki", tags=["anki"])
 # api_router.include_router(settings.router, prefix="/settings", tags=["settings"])

@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+import type { ReaderRecommendations } from '@/services/api'
+
 export interface PosColors {
   verb: string
   noun: string
@@ -11,15 +13,21 @@ export interface PosColors {
 }
 
 export type WritingMode = 'horizontal-tb' | 'vertical-rl'
+export type FuriganaMode = 'all' | 'unknown' | 'none'
 
 export interface ReaderSettings {
   fontSize: number
   lineHeight: number
   fontFamily: string
   showFurigana: boolean
+  furiganaMode: FuriganaMode
+  furiganaThreshold: number // Show furigana for words below this score
+  showMeanings: boolean
+  highlightUnknown: boolean
   colorByPos: boolean
   posColors: PosColors
   writingMode: WritingMode
+  autoApplyProficiency: boolean // Whether to auto-apply proficiency recommendations
 }
 
 interface ReaderStore {
@@ -29,6 +37,7 @@ interface ReaderStore {
   updatePosColor: (pos: keyof PosColors, color: string) => void
   addFont: (font: string) => void
   removeFont: (font: string) => void
+  applyRecommendations: (recommendations: ReaderRecommendations) => void
 }
 
 const defaultPosColors: PosColors = {
@@ -45,9 +54,14 @@ const defaultSettings: ReaderSettings = {
   lineHeight: 2.2,
   fontFamily: 'Noto Sans JP',
   showFurigana: true,
+  furiganaMode: 'all',
+  furiganaThreshold: 0.5,
+  showMeanings: false,
+  highlightUnknown: true,
   colorByPos: false,
   posColors: defaultPosColors,
   writingMode: 'horizontal-tb',
+  autoApplyProficiency: true,
 }
 
 const defaultFonts = [
@@ -61,7 +75,7 @@ const defaultFonts = [
 
 export const useReaderStore = create<ReaderStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       settings: defaultSettings,
       installedFonts: defaultFonts,
       updateSettings: (updates) =>
@@ -85,6 +99,20 @@ export const useReaderStore = create<ReaderStore>()(
         set((state) => ({
           installedFonts: state.installedFonts.filter((f) => f !== font),
         })),
+      applyRecommendations: (recommendations) => {
+        const { settings } = get()
+        if (!settings.autoApplyProficiency) return
+
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            furiganaMode: recommendations.show_furigana,
+            furiganaThreshold: recommendations.furigana_threshold,
+            showMeanings: recommendations.show_meanings,
+            highlightUnknown: recommendations.highlight_unknown,
+          },
+        }))
+      },
     }),
     {
       name: 'reader-settings',

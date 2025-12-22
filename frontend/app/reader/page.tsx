@@ -133,8 +133,10 @@ export default function ReaderPage() {
                   lineHeight={settings.lineHeight}
                   fontFamily={settings.fontFamily}
                   showFurigana={settings.showFurigana}
+                  showMeanings={settings.showMeanings}
                   colorByPos={settings.colorByPos}
                   posColors={settings.posColors}
+                  writingMode={settings.writingMode}
                   onTokenize={handleTokenize}
                 />
               ) : (

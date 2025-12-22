@@ -297,6 +297,11 @@ export function ReaderSettings() {
               onChange={(v) => updateSettings({ showFurigana: v })}
             />
             <ToggleRow
+              label="Word meanings"
+              checked={settings.showMeanings}
+              onChange={(v) => updateSettings({ showMeanings: v })}
+            />
+            <ToggleRow
               label="Color by word type"
               checked={settings.colorByPos}
               onChange={(v) => updateSettings({ colorByPos: v })}

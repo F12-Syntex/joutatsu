@@ -222,6 +222,7 @@ export default function BookReaderPage() {
                 lineHeight={settings.lineHeight}
                 fontFamily={settings.fontFamily}
                 showFurigana={settings.showFurigana}
+                showMeanings={settings.showMeanings}
                 colorByPos={settings.colorByPos}
                 posColors={settings.posColors}
                 writingMode={settings.writingMode}

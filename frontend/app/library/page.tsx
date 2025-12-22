@@ -98,10 +98,11 @@ function EmptyState({ onImport }: { onImport: () => void }) {
 }
 
 // Generate a consistent gradient based on title
-function getTitleGradient(title: string): string {
+function getTitleGradient(title: string | undefined): string {
+  const safeTitle = title || 'Untitled'
   let hash = 0
-  for (let i = 0; i < title.length; i++) {
-    hash = title.charCodeAt(i) + ((hash << 5) - hash)
+  for (let i = 0; i < safeTitle.length; i++) {
+    hash = safeTitle.charCodeAt(i) + ((hash << 5) - hash)
   }
   const hue1 = Math.abs(hash % 360)
   const hue2 = (hue1 + 40) % 360
@@ -139,7 +140,7 @@ function BookCard({ book, onDelete }: { book: Book; onDelete: () => void }) {
                 className="text-2xl font-bold text-white/80 text-center leading-tight line-clamp-3"
                 style={{ fontFamily: 'serif' }}
               >
-                {book.title}
+                {book.title || 'Untitled'}
               </span>
             </div>
           )}
@@ -158,7 +159,7 @@ function BookCard({ book, onDelete }: { book: Book; onDelete: () => void }) {
       <div className="mt-2 px-1">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="text-sm font-medium truncate">{book.title}</h3>
+            <h3 className="text-sm font-medium truncate">{book.title || 'Untitled'}</h3>
             {book.author && (
               <p className="text-xs text-muted-foreground truncate">
                 {book.author}

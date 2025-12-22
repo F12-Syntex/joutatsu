@@ -244,6 +244,33 @@ uv run pytest -k "test_merge" -v  # Run tests matching pattern
 - **Missing data files**: JMdict and Kanjium data require `pnpm setup` to download.
 - **Database tables**: New tables require migration. Services should handle missing tables gracefully.
 
+## Japanese Data File Handling
+
+- **UTF-8 BOM**: Japanese CSV/TSV files often include a Byte Order Mark. Use `encoding="utf-8-sig"` to strip it:
+  ```python
+  content = path.read_text(encoding="utf-8-sig")  # Strips BOM automatically
+  ```
+- **Shift-JIS encoding**: Aozora Bunko and many Japanese text files use Shift-JIS, not UTF-8. Try Shift-JIS first:
+  ```python
+  try:
+      text = content.decode("shift_jis")
+  except UnicodeDecodeError:
+      text = content.decode("utf-8")
+  ```
+- **Zip archives**: Aozora text files are distributed as `.zip` archives. Extract before decoding.
+- **External IDs vs Names**: When integrating external data sources, always use IDs for lookups, not names. Names can vary between records (spacing, character variants).
+
+## React Patterns
+
+**Safe List Rendering**:
+- Filter out items with empty/invalid keys before mapping: `items.filter(x => x.id).map(...)`
+- Use composite keys when IDs may not be unique: `key={\`${item.id}-${index}\`}`
+- Track loading state by unique key, not just ID
+
+**Defensive Rendering**:
+- Always handle undefined/null for optional fields: `{book.title || 'Untitled'}`
+- Use optional chaining for nested access: `item?.property?.value`
+
 ## Reference Documents
 
 - **ARCHITECTURE.md**: Locked technical architecture (database schema, API spec, component hierarchy)

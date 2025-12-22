@@ -21,7 +21,11 @@
       "Bash(pnpm lint:frontend:*)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(yes:*)",
-      "Bash(uv run python:*)"
+      "Bash(uv run python:*)",
+      "Bash(pnpm --filter backend exec python:*)",
+      "Bash(pnpm lint:backend:*)",
+      "Bash(pnpm exec tsc:*)",
+      "Bash(timeout:*)"
     ]
   }
 }
