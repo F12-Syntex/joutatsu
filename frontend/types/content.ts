@@ -56,3 +56,14 @@ export interface ContentFilterParams {
   limit?: number
   offset?: number
 }
+
+/** Reading practice response from skill-matched content. */
+export interface ReadingPractice {
+  content_id: number
+  content_title: string
+  chunk_index: number
+  text: string
+  tokenized_json: string | null
+  difficulty_estimate: number | null
+  total_chunks: number
+}

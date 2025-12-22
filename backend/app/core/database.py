@@ -64,6 +64,28 @@ async def run_migrations(conn) -> None:
             "CREATE INDEX IF NOT EXISTS ix_content_images_chunk_index "
             "ON content_images(chunk_index)"
         ))
+
+        # Migrate user_proficiency table - add new proficiency columns
+        result = await conn.execute(text("PRAGMA table_info(user_proficiency)"))
+        prof_columns = [row[1] for row in result.fetchall()]
+
+        if prof_columns:
+            new_columns = [
+                ("kanji_proficiency", "REAL DEFAULT 0.0"),
+                ("lexical_proficiency", "REAL DEFAULT 0.0"),
+                ("grammar_proficiency", "REAL DEFAULT 0.0"),
+                ("reading_proficiency", "REAL DEFAULT 0.0"),
+                ("target_kanji_difficulty", "REAL DEFAULT 0.3"),
+                ("target_lexical_difficulty", "REAL DEFAULT 0.3"),
+                ("target_grammar_difficulty", "REAL DEFAULT 0.3"),
+                ("auto_furigana_threshold", "REAL DEFAULT 0.0"),
+                ("auto_meanings_threshold", "REAL DEFAULT 0.0"),
+            ]
+            for col_name, col_def in new_columns:
+                if col_name not in prof_columns:
+                    await conn.execute(
+                        text(f"ALTER TABLE user_proficiency ADD COLUMN {col_name} {col_def}")
+                    )
     except Exception:
         pass  # Migrations may fail on fresh DB, tables will be created by create_all
 

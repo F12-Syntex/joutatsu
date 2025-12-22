@@ -4,6 +4,7 @@ import type {
   ContentFilterParams,
   ContentImportRequest,
   ContentListResponse,
+  ReadingPractice,
 } from '@/types/content'
 
 const envUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -114,6 +115,28 @@ export async function searchContent(
 
   if (!res.ok) {
     throw new Error(`Failed to search content: ${res.status}`)
+  }
+
+  return res.json()
+}
+
+/** Get reading practice text matched to user's skill level. */
+export async function getReadingPractice(
+  excludeContentId?: number
+): Promise<ReadingPractice> {
+  const params = new URLSearchParams()
+  if (excludeContentId !== undefined) {
+    params.set('exclude_content_id', String(excludeContentId))
+  }
+
+  const url = `${API_BASE}/api/content/practice${params.toString() ? `?${params}` : ''}`
+  const res = await fetch(url)
+
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error('No content available. Import some content first.')
+    }
+    throw new Error(`Failed to get reading practice: ${res.status}`)
   }
 
   return res.json()

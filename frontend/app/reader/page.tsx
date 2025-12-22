@@ -1,30 +1,29 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { ChevronRight, RefreshCw } from 'lucide-react'
+import { ChevronRight, RefreshCw, AlertCircle } from 'lucide-react'
 
 import { MainLayout } from '@/components/layout/main-layout'
 import { JapaneseText } from '@/components/japanese-text'
 import { Button } from '@/components/ui/button'
 import { ReaderSettings, DifficultyRating } from '@/components/reader'
 import { useReaderStore } from '@/stores/reader-store'
+import { useProficiency } from '@/hooks/use-proficiency'
+import { getReadingPractice } from '@/services/content'
 import type { Token } from '@/types/token'
+import type { ReadingPractice } from '@/types/content'
 
-type ReaderState = 'reading' | 'rating'
+type ReaderState = 'reading' | 'rating' | 'empty'
 
-// Sample texts for now - will be replaced with backend generation
+// Fallback sample texts if no content in database
 const sampleTexts = [
   '日本語を勉強しています。毎日少しずつ上達しています。',
-  '東京都は今年、新しい環境政策を発表しました。この政策により、二酸化炭素の排出量を大幅に削減することが期待されています。',
-  '昔々、山の奥に小さな村がありました。その村には、不思議な力を持つ老人が住んでいました。村人たちは彼のことを「山の仙人」と呼んでいました。',
-  '桜の季節になると、多くの人々が公園に集まります。美しい花を見ながら、友人や家族と楽しい時間を過ごします。',
-  '日本の伝統的な食文化は、世界中で高く評価されています。特に寿司や天ぷらは、海外でも人気があります。',
-  '電車の中では、静かにすることがマナーとされています。携帯電話での通話は控えめにしましょう。',
+  '桜の季節になると、多くの人々が公園に集まります。',
+  '日本の伝統的な食文化は、世界中で高く評価されています。',
   '富士山は日本で最も高い山で、その美しさは古くから多くの芸術家に影響を与えてきました。',
-  '最近、リモートワークが普及し、働き方が大きく変わりました。自宅で仕事をする人が増えています。',
 ]
 
-function getRandomText(excludeText?: string): string {
+function getRandomFallbackText(excludeText?: string): string {
   const available = excludeText
     ? sampleTexts.filter((t) => t !== excludeText)
     : sampleTexts
@@ -34,14 +33,35 @@ function getRandomText(excludeText?: string): string {
 export default function ReaderPage() {
   const [state, setState] = useState<ReaderState>('reading')
   const [currentText, setCurrentText] = useState('')
+  const [currentPractice, setCurrentPractice] = useState<ReadingPractice | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [usingFallback, setUsingFallback] = useState(false)
   const [tokenCount, setTokenCount] = useState(0)
   const [textIndex, setTextIndex] = useState(0)
   const { settings, installedFonts } = useReaderStore()
+  const { recordDifficulty } = useProficiency()
 
-  // Generate initial text on mount
-  useEffect(() => {
-    setCurrentText(getRandomText())
+  // Fetch content from database on mount
+  const fetchPractice = useCallback(async (excludeContentId?: number) => {
+    setIsLoading(true)
+    try {
+      const practice = await getReadingPractice(excludeContentId)
+      setCurrentPractice(practice)
+      setCurrentText(practice.text)
+      setUsingFallback(false)
+    } catch {
+      // Fall back to sample texts if no content available
+      setCurrentPractice(null)
+      setCurrentText(getRandomFallbackText())
+      setUsingFallback(true)
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchPractice()
+  }, [fetchPractice])
 
   // Load fonts on mount
   useEffect(() => {
@@ -71,28 +91,35 @@ export default function ReaderPage() {
   }, [])
 
   const handleRatingSubmit = useCallback(
-    (rating: string, feedback?: string) => {
-      console.log('Rating:', rating, feedback)
-      // TODO: Save rating to backend and use for adaptive difficulty
+    async (rating: string, feedback?: string) => {
+      // Save rating to backend if we have real content
+      if (currentPractice?.content_id) {
+        await recordDifficulty(
+          currentPractice.content_id,
+          rating as 'easy' | 'just_right' | 'hard',
+          feedback,
+          currentPractice.chunk_index
+        )
+      }
 
-      // Generate next text
-      setCurrentText(getRandomText(currentText))
+      // Fetch next content, excluding current
       setTextIndex((prev) => prev + 1)
       setState('reading')
+      await fetchPractice(currentPractice?.content_id)
     },
-    [currentText]
+    [currentPractice, fetchPractice, recordDifficulty]
   )
 
-  const handleRatingSkip = useCallback(() => {
-    // Generate next text without saving rating
-    setCurrentText(getRandomText(currentText))
+  const handleRatingSkip = useCallback(async () => {
+    // Fetch next content without saving rating
     setTextIndex((prev) => prev + 1)
     setState('reading')
-  }, [currentText])
+    await fetchPractice(currentPractice?.content_id)
+  }, [currentPractice, fetchPractice])
 
-  const handleRefresh = useCallback(() => {
-    setCurrentText(getRandomText(currentText))
-  }, [currentText])
+  const handleRefresh = useCallback(async () => {
+    await fetchPractice(currentPractice?.content_id)
+  }, [currentPractice, fetchPractice])
 
   return (
     <MainLayout>
@@ -107,17 +134,32 @@ export default function ReaderPage() {
                   <h1 className="text-lg font-semibold">Reader</h1>
                   <span className="text-sm text-muted-foreground">
                     #{textIndex + 1} · {tokenCount} tokens
+                    {currentPractice && (
+                      <>
+                        {' '}· {currentPractice.content_title}
+                        {currentPractice.difficulty_estimate !== null && (
+                          <> (難易度: {Math.round(currentPractice.difficulty_estimate * 100)}%)</>
+                        )}
+                      </>
+                    )}
                   </span>
+                  {usingFallback && (
+                    <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded">
+                      <AlertCircle className="h-3 w-3" />
+                      サンプル
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={handleRefresh}
+                    disabled={isLoading}
                     title="Get different text"
                     className="h-9 w-9"
                   >
-                    <RefreshCw className="h-4 w-4" />
+                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                   </Button>
                   <ReaderSettings />
                 </div>
@@ -126,7 +168,11 @@ export default function ReaderPage() {
 
             {/* Reading Content - Full area */}
             <div className="flex-1 p-8 md:p-12 lg:p-16 pb-24">
-              {currentText ? (
+              {isLoading ? (
+                <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                  Loading...
+                </div>
+              ) : currentText ? (
                 <JapaneseText
                   text={currentText}
                   fontSize={settings.fontSize}
@@ -140,8 +186,9 @@ export default function ReaderPage() {
                   onTokenize={handleTokenize}
                 />
               ) : (
-                <div className="flex items-center justify-center h-[200px] text-muted-foreground">
-                  Loading...
+                <div className="flex flex-col items-center justify-center h-[200px] gap-4 text-muted-foreground">
+                  <AlertCircle className="h-8 w-8" />
+                  <p>No content available. Import some content to get started.</p>
                 </div>
               )}
             </div>
@@ -150,6 +197,7 @@ export default function ReaderPage() {
             <div className="fixed bottom-6 right-6 z-20">
               <Button
                 onClick={handleFinishReading}
+                disabled={isLoading || !currentText}
                 size="lg"
                 className="gap-2 px-6 shadow-lg"
               >

@@ -19,9 +19,11 @@ from app.schemas.content import (
     ContentImportRequest,
     ContentListResponse,
     ContentResponse,
+    ReadingPracticeResponse,
 )
 from app.services.content_service import ContentService
 from app.services.pdf_service import PDFService
+from app.services.proficiency_service import ProficiencyService
 
 router = APIRouter(prefix="/content", tags=["content"])
 
@@ -147,6 +149,58 @@ async def import_pdf_content(
     chunk_count = await chunk_repo.get_chunk_count(content.id)
 
     return _content_to_response(content, chunk_count, image_count)
+
+
+@router.get("/practice", response_model=ReadingPracticeResponse)
+async def get_reading_practice(
+    exclude_content_id: Optional[int] = None,
+    session: AsyncSession = Depends(get_session),
+) -> ReadingPracticeResponse:
+    """
+    Get a random text chunk matched to user's skill level.
+
+    Returns content closest to the user's target difficulty,
+    with a random chunk selected for reading practice.
+    """
+    # Get user's target difficulty
+    proficiency_service = ProficiencyService(session)
+    proficiency = await proficiency_service.get_proficiency()
+
+    # Average the target difficulties to get overall target
+    target_difficulty = (
+        proficiency.target_kanji_difficulty
+        + proficiency.target_lexical_difficulty
+        + proficiency.target_grammar_difficulty
+    ) / 3
+
+    # Get content matched to skill level
+    content_service = ContentService(session)
+    result = await content_service.get_reading_practice(
+        target_difficulty=target_difficulty,
+        exclude_content_id=exclude_content_id,
+    )
+
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail="No content available. Import some content first.",
+        )
+
+    content, chunk = result
+
+    # Get total chunk count for context
+    chunk_repo = ContentChunkRepository(session)
+    total_chunks = await chunk_repo.get_chunk_count(content.id)
+
+    return ReadingPracticeResponse(
+        content_id=content.id,
+        content_title=content.title,
+        chunk_index=chunk.chunk_index,
+        text=chunk.raw_text,
+        tokenized_json=chunk.tokenized_json,
+        difficulty_estimate=content.difficulty_estimate,
+        total_chunks=total_chunks,
+    )
 
 
 @router.get("", response_model=ContentListResponse)

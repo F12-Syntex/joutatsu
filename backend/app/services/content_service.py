@@ -1,6 +1,7 @@
 """Content service for managing reading content."""
 
 import json
+import random
 from typing import Optional
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -218,3 +219,49 @@ class ContentService:
         """Search content by title."""
         results = await self._content_repo.search(query, limit)
         return list(results)
+
+    async def get_reading_practice(
+        self,
+        target_difficulty: float,
+        exclude_content_id: Optional[int] = None,
+    ) -> Optional[tuple[Content, ContentChunk]]:
+        """
+        Get a random chunk from content closest to target difficulty.
+
+        Args:
+            target_difficulty: Target difficulty score (0.0-1.0)
+            exclude_content_id: Content ID to exclude (e.g., just read)
+
+        Returns:
+            Tuple of (Content, ContentChunk) or None if no content available
+        """
+        # Get content closest to target difficulty
+        contents = await self._content_repo.get_by_closest_difficulty(
+            target_difficulty, limit=10
+        )
+
+        if not contents:
+            return None
+
+        # Filter out excluded content
+        if exclude_content_id:
+            contents = [c for c in contents if c.id != exclude_content_id]
+            if not contents:
+                # Fall back to including excluded if nothing else
+                contents = list(
+                    await self._content_repo.get_by_closest_difficulty(
+                        target_difficulty, limit=10
+                    )
+                )
+
+        # Pick a random content from top matches
+        content = random.choice(contents[:5]) if len(contents) > 5 else random.choice(contents)
+
+        # Get chunks for this content
+        chunks = await self._chunk_repo.get_chunks_for_content(content.id)
+        if not chunks:
+            return None
+
+        # Pick a random chunk
+        chunk = random.choice(list(chunks))
+        return content, chunk

@@ -71,6 +71,25 @@ class ContentRepository(BaseRepository[Content]):
         result = await self.session.exec(statement)
         return result.all()
 
+    async def get_by_closest_difficulty(
+        self,
+        target_difficulty: float,
+        limit: int = 10,
+    ) -> Sequence[Content]:
+        """Get content closest to target difficulty, ordered by proximity."""
+        from sqlmodel import func
+
+        # SQLite ABS function for distance calculation
+        distance = func.abs(Content.difficulty_estimate - target_difficulty)
+        statement = (
+            select(Content)
+            .where(Content.difficulty_estimate.isnot(None))
+            .order_by(distance)
+            .limit(limit)
+        )
+        result = await self.session.exec(statement)
+        return result.all()
+
 
 class ContentChunkRepository(BaseRepository[ContentChunk]):
     """Repository for content chunk data access."""

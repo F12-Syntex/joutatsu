@@ -34,6 +34,9 @@ pnpm lint:frontend   # ESLint
 
 # Setup
 pnpm setup           # Install deps + reference data (JMdict, Kanjium, SudachiPy)
+
+# Backend NLP dependencies (required for tokenization)
+cd backend && uv sync --extra nlp   # Installs sudachipy, jamdict, edge-tts, jreadability
 ```
 
 ## Architecture
@@ -70,7 +73,7 @@ joutatsu/
 **Tech Stack**:
 - Backend: FastAPI, SQLite + SQLModel, SudachiPy (tokenizer), jamdict (JMdict), edge-tts
 - Frontend: Next.js 14 (App Router, static export), Tailwind CSS + shadcn/ui, TanStack Query, Zustand
-- AI: OpenRouter SDK for contextual word meanings, PDF cleanup, grammar explanations
+- AI: OpenRouter SDK for contextual word meanings, PDF cleanup, grammar explanations, adaptive text generation
 
 ## Conventions
 
@@ -106,32 +109,38 @@ joutatsu/
 
 ## Current Implementation Status
 
-**Phase 0: Project Setup** - Complete (6 tasks)
+**Phase 0-2: Foundation** - Complete
 - Monorepo structure, FastAPI + Next.js integration
-- SQLite database with SQLModel
-- Reference data setup (JMdict, Kanjium pitch, SudachiPy)
+- SQLite database with SQLModel, reference data (JMdict, Kanjium, SudachiPy)
+- TokenizerService, DictionaryService, ContentService
+- Reading canvas with tooltips at `/read` page
+- Data Explorer at `/explore` page
 
-**Phase 1: Core Reading Canvas & Tooltips** - Complete (13 tasks)
-- TokenizerService with SudachiPy and conjugation merging
-- DictionaryService with JMdict + Kanjium pitch accent
-- API routes: `/api/tokenize`, `/api/dictionary/lookup`, `/api/dictionary/pitch`
-- Frontend: ReadingCanvas, TokenDisplay, WordTooltip, PitchDisplay
-- Zustand store for canvas state, React hooks for API calls
-- Integration at `/read` page
+**Phase 3: Progress & Proficiency Tracking** - Complete
+- Progress tracking with scoring service (`/api/progress/*`)
+- Session management for reading sessions (`/api/sessions/*`)
+- User proficiency model (multi-dimensional: kanji, lexical, grammar)
+- Weakness analysis and recommendations (`/api/proficiency/*`)
+- Progress page at `/progress` with stats, charts, session history
 
-**Phase 2: Data Layer & Content Management** - Complete (13 tasks)
-- SQLModel models: Content, ContentChunk, Vocabulary
-- Repositories: VocabularyRepository, ContentRepository
-- ContentService with text/PDF import and tokenization
-- API routes: `/api/content/*` (CRUD, import, chunks)
-- Data Explorer at `/explore` page (status, content, dictionary, tokenization, pitch)
-- Frontend types and services for content management
+**Phase 4: Aozora Bunko Integration** - Complete
+- Browse and search Aozora catalog (`/api/aozora/*`)
+- Download and import public domain texts
+- Library page with book details at `/library`, `/library/[id]`
 
-**Next**: Phase 3 - Vocabulary Tracking (SRS, known words, progress)
+**Phase 5: Text Generation** - Complete
+- OpenRouter-powered Japanese text generation (`/api/generation/*`)
+- Difficulty matching to user proficiency (i+1 approach)
+- Configurable challenge level, genre, and length settings
+- PracticeGenerator and DifficultySettings components
 
-**Upcoming**: Phase 8 - Difficulty Analysis & Adaptive Content (jReadability, KanjiAPI, per-dimension proficiency tracking)
+**Phase 7: Video Watch Mode** - Complete
+- Local video directory browsing (`/api/video/*`)
+- SRT subtitle parsing and sync
+- JapaneseText integration for subtitle hover tooltips
+- Watch page at `/watch`
 
-See IMPLEMENTATION_PLAN.md for the full 82-task breakdown.
+See IMPLEMENTATION_PLAN.md for the full task breakdown.
 
 ## shadcn/ui Configuration
 
@@ -185,6 +194,20 @@ except Exception:
 - Format: `kanji\treading\tpitch_pattern` (e.g., `食べる\tたべる\t2`)
 - Reading is in **hiragana** (not katakana) - lookups must use hiragana
 - Pattern number = mora where pitch drops (0 = heiban/flat, 1 = atamadaka, 2+ = nakadaka/odaka)
+
+**API Routes Overview**:
+| Route Prefix | Purpose |
+|-------------|---------|
+| `/api/data/*` | Data exploration (dictionary, tokenize, pitch) |
+| `/api/tokenize/*` | Text tokenization |
+| `/api/dictionary/*` | Dictionary lookups |
+| `/api/content/*` | Content CRUD and import |
+| `/api/progress/*` | Progress summary and weakest words |
+| `/api/sessions/*` | Reading session tracking |
+| `/api/proficiency/*` | User proficiency and recommendations |
+| `/api/generation/*` | Text generation at target difficulty |
+| `/api/aozora/*` | Aozora Bunko catalog and downloads |
+| `/api/video/*` | Video directory browsing |
 
 **Data API Routes** (`/api/data/*`):
 - `/data/status` - Check availability of JMdict, SudachiPy, pitch data
@@ -245,6 +268,20 @@ uv run pytest -k "test_merge" -v  # Run tests matching pattern
 - **CORS**: Backend must allow frontend origin. Check `app/core/config.py` CORS settings.
 - **Missing data files**: JMdict and Kanjium data require `pnpm setup` to download.
 - **Database tables**: New tables require migration. Services should handle missing tables gracefully.
+
+## Database Schema Changes (Development)
+
+During active development, SQLite schema changes require database recreation:
+
+1. **Adding columns to existing models**: Delete `data/joutatsu.db` and restart the server
+2. **New models**: Import in `app/models/__init__.py` before server restart
+3. **Migration note**: Production would use Alembic, but development uses fresh DB recreation
+
+```bash
+# When you see "no such column" errors:
+rm data/joutatsu.db
+pnpm dev  # Database recreates with new schema
+```
 
 ## Japanese Data File Handling
 
@@ -328,6 +365,34 @@ Track user proficiency across each dimension separately:
 - Users may have strong kanji recognition but weak grammar comprehension
 - Adaptive content selection considers per-dimension proficiency
 - Progress page shows breakdown by skill area
+
+## Text Generation Service
+
+The `TextGenerationService` generates Japanese text matching user proficiency:
+
+```python
+from app.services.text_generation_service import TextGenerationService
+
+service = TextGenerationService()
+result = await service.generate_at_user_level(
+    kanji_proficiency=0.4,
+    lexical_proficiency=0.5,
+    grammar_proficiency=0.3,
+    topic="cooking",
+    genre="dialogue",  # general, story, dialogue, news, essay
+    length="medium",   # short, medium, long
+    challenge_level=0.1,  # i+1 increment (0.0-0.3)
+)
+```
+
+**API Endpoints**:
+- `POST /api/generation/text` - Generate text with specified parameters
+- `GET /api/generation/settings` - Get current proficiency settings
+- `POST /api/generation/settings` - Update target difficulties and auto-adjust settings
+
+**Frontend Components**:
+- `PracticeGenerator` - UI for text generation with topic, genre, length controls
+- `DifficultySettings` - Sliders for target difficulty per dimension
 
 ## Reference Documents
 

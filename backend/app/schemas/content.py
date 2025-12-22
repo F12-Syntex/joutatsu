@@ -84,3 +84,15 @@ class ContentFilterParams(BaseModel):
     max_difficulty: Optional[float] = Field(default=None, ge=0, le=1)
     limit: int = Field(default=50, ge=1, le=200)
     offset: int = Field(default=0, ge=0)
+
+
+class ReadingPracticeResponse(BaseModel):
+    """Response schema for reading practice text."""
+
+    content_id: int
+    content_title: str
+    chunk_index: int
+    text: str
+    tokenized_json: Optional[str]
+    difficulty_estimate: Optional[float]
+    total_chunks: int
