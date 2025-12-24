@@ -21,7 +21,8 @@
       "Bash(pnpm lint:frontend:*)",
       "Bash(npx shadcn@latest add:*)",
       "Bash(yes:*)",
-      "Bash(uv run python:*)"
+      "Bash(uv run python:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
